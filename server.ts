@@ -857,6 +857,28 @@ app.all(['/games/morpion/api.php', '/api/morpion', '/api.php'], async (req: Requ
       return res.json({ success: true });
     }
 
+    case 'get_user_stats': {
+      if (!user) {
+        return res.status(401).json({ success: false, error: 'Connexion requise pour consulter les statistiques.' });
+      }
+      const stats = db.getUserDetailedStats(user.id);
+      return res.json({ success: true, stats, rank: db.getUserRank(user.id) });
+    }
+
+    case 'sync_stats': {
+      if (!user) {
+        return res.status(401).json({ success: false, error: 'Connexion requise pour synchroniser les statistiques.' });
+      }
+      if (!verifyCsrf(req)) {
+        return res.status(403).json({ success: false, error: 'Jeton de sécurité invalide.' });
+      }
+      const localWins = Math.max(0, parseInt(input.wins, 10) || 0);
+      const localLosses = Math.max(0, parseInt(input.losses, 10) || 0);
+      const localTies = Math.max(0, parseInt(input.ties, 10) || 0);
+      const updatedStats = db.syncUserLocalStats(user.id, localWins, localLosses, localTies);
+      return res.json({ success: true, stats: updatedStats, rank: db.getUserRank(user.id) });
+    }
+
     // ----------------- Wi-Fi ROOMS -----------------
     case 'create_room': {
       let size = parseInt(input.size, 10) || 3;

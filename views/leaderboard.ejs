@@ -182,9 +182,10 @@
                                     <%= entry.ties %>
                                 </td>
                                 <td style="text-align: center;">
-                                    <span style="font-weight: 700; color: <%= entry.win_rate >= 60 ? '#34d399' : entry.win_rate >= 40 ? '#fbbf24' : '#a1a1aa' %>;">
+                                    <span style="font-weight: 800; font-family: 'JetBrains Mono', monospace; color: #60a5fa;"><%= entry.ratio || '0.00' %></span>
+                                    <div style="font-size: 0.72rem; color: <%= entry.win_rate >= 60 ? '#34d399' : entry.win_rate >= 40 ? '#fbbf24' : '#a1a1aa' %>; font-weight: 600;">
                                         <%= entry.win_rate %>%
-                                    </span>
+                                    </div>
                                 </td>
                             </tr>
                         <% }); %>

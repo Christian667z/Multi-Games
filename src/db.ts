@@ -2,6 +2,38 @@ import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 
+export interface ModeStat {
+  total: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  ratio: string;
+  win_rate: number;
+}
+
+export interface UserStats {
+  total: number;
+  completed: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  ratio: string;
+  ratio_numeric: number;
+  win_rate: number;
+  points: number;
+  current_streak: number;
+  best_streak: number;
+  bot_games: number;
+  wifi_games: number;
+  local_games: number;
+  modes: {
+    bot: ModeStat;
+    wifi: ModeStat;
+    local: ModeStat;
+  };
+  bot_level_breakdown: Record<string, { total: number; wins: number; losses: number; ties: number; ratio: string; win_rate: number }>;
+}
+
 export interface User {
   id: number;
   email: string;
@@ -13,6 +45,7 @@ export interface User {
   is_banned: number;
   avatar?: string;
   theme_preference?: string;
+  stats?: UserStats;
 }
 
 export interface GameSession {
@@ -25,6 +58,8 @@ export interface GameSession {
   result: 'X' | 'O' | 'TIE' | null;
   started_at: number;
   completed_at: number | null;
+  user_symbol?: 'X' | 'O';
+  opponent_name?: string;
 }
 
 export interface BotMistake {
@@ -346,10 +381,14 @@ class Database {
     });
   }
 
-  public getUserDetailedStats(userId: number) {
-    const userSessions = this.sessions.filter(s => s.user_id === userId);
+  public getUserDetailedStats(userId: number): UserStats {
+    const userSessions = this.sessions
+      .filter(s => s.user_id === userId)
+      .sort((a, b) => a.started_at - b.started_at);
+
     const total = userSessions.length;
-    const completed = userSessions.filter(s => s.completed_at !== null).length;
+    const completedSessions = userSessions.filter(s => s.completed_at !== null && s.result !== null);
+    const completed = completedSessions.length;
 
     let wins = 0;
     let losses = 0;
@@ -358,60 +397,230 @@ class Database {
     let wifiGames = 0;
     let localGames = 0;
 
-    const botLevelBreakdown: Record<string, { total: number; wins: number; losses: number; ties: number }> = {
-      novice: { total: 0, wins: 0, losses: 0, ties: 0 },
-      medium: { total: 0, wins: 0, losses: 0, ties: 0 },
-      advanced: { total: 0, wins: 0, losses: 0, ties: 0 },
-      legend: { total: 0, wins: 0, losses: 0, ties: 0 },
-      adaptive: { total: 0, wins: 0, losses: 0, ties: 0 },
+    const modes = {
+      bot: { total: 0, wins: 0, losses: 0, ties: 0, ratio: '0.00', win_rate: 0 },
+      wifi: { total: 0, wins: 0, losses: 0, ties: 0, ratio: '0.00', win_rate: 0 },
+      local: { total: 0, wins: 0, losses: 0, ties: 0, ratio: '0.00', win_rate: 0 },
     };
 
+    const botLevelBreakdown: Record<string, { total: number; wins: number; losses: number; ties: number; ratio: string; win_rate: number }> = {
+      novice: { total: 0, wins: 0, losses: 0, ties: 0, ratio: '0.00', win_rate: 0 },
+      medium: { total: 0, wins: 0, losses: 0, ties: 0, ratio: '0.00', win_rate: 0 },
+      advanced: { total: 0, wins: 0, losses: 0, ties: 0, ratio: '0.00', win_rate: 0 },
+      legend: { total: 0, wins: 0, losses: 0, ties: 0, ratio: '0.00', win_rate: 0 },
+      adaptive: { total: 0, wins: 0, losses: 0, ties: 0, ratio: '0.00', win_rate: 0 },
+    };
+
+    let bestStreak = 0;
+    let tempStreak = 0;
+
     for (const s of userSessions) {
+      const isCompleted = s.completed_at !== null && s.result !== null;
+      const userSym = s.user_symbol || 'X';
+
       if (s.mode === 'bot') {
         botGames++;
+        modes.bot.total++;
         const lvl = s.bot_level || 'medium';
         if (!botLevelBreakdown[lvl]) {
-          botLevelBreakdown[lvl] = { total: 0, wins: 0, losses: 0, ties: 0 };
+          botLevelBreakdown[lvl] = { total: 0, wins: 0, losses: 0, ties: 0, ratio: '0.00', win_rate: 0 };
         }
         botLevelBreakdown[lvl].total++;
-        if (s.result === 'X') {
-          wins++;
-          botLevelBreakdown[lvl].wins++;
-        } else if (s.result === 'O') {
-          losses++;
-          botLevelBreakdown[lvl].losses++;
-        } else if (s.result === 'TIE') {
-          ties++;
-          botLevelBreakdown[lvl].ties++;
+
+        if (isCompleted) {
+          if (s.result === userSym) {
+            wins++;
+            modes.bot.wins++;
+            botLevelBreakdown[lvl].wins++;
+            tempStreak++;
+            bestStreak = Math.max(bestStreak, tempStreak);
+          } else if (s.result === 'TIE') {
+            ties++;
+            modes.bot.ties++;
+            botLevelBreakdown[lvl].ties++;
+            tempStreak = 0;
+          } else {
+            losses++;
+            modes.bot.losses++;
+            botLevelBreakdown[lvl].losses++;
+            tempStreak = 0;
+          }
         }
       } else if (s.mode === 'wifi') {
         wifiGames++;
-        if (s.result === 'X' || s.result === 'O') wins++;
-        else if (s.result === 'TIE') ties++;
+        modes.wifi.total++;
+        if (isCompleted) {
+          if (s.result === userSym) {
+            wins++;
+            modes.wifi.wins++;
+            tempStreak++;
+            bestStreak = Math.max(bestStreak, tempStreak);
+          } else if (s.result === 'TIE') {
+            ties++;
+            modes.wifi.ties++;
+            tempStreak = 0;
+          } else {
+            losses++;
+            modes.wifi.losses++;
+            tempStreak = 0;
+          }
+        }
       } else if (s.mode === 'local') {
         localGames++;
-        if (s.result === 'X' || s.result === 'O') wins++;
-        else if (s.result === 'TIE') ties++;
+        modes.local.total++;
+        if (isCompleted) {
+          if (s.result === userSym) {
+            wins++;
+            modes.local.wins++;
+            tempStreak++;
+            bestStreak = Math.max(bestStreak, tempStreak);
+          } else if (s.result === 'TIE') {
+            ties++;
+            modes.local.ties++;
+            tempStreak = 0;
+          } else {
+            losses++;
+            modes.local.losses++;
+            tempStreak = 0;
+          }
+        }
       }
     }
 
-    const decisive = wins + losses;
-    const winRate = decisive > 0 ? Math.round((wins / decisive) * 100) : 0;
+    // Determine current active streak from newest to oldest
+    let currentStreak = 0;
+    const reverseCompleted = [...completedSessions].reverse();
+    for (const s of reverseCompleted) {
+      const userSym = s.user_symbol || 'X';
+      if (s.result === userSym) {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
+
+    const calcRatio = (w: number, l: number): { ratio: string; numeric: number } => {
+      if (l === 0) {
+        return { ratio: w > 0 ? `${w}.00` : '0.00', numeric: w };
+      }
+      const num = w / l;
+      return { ratio: num.toFixed(2), numeric: Math.round(num * 100) / 100 };
+    };
+
+    const overallRatio = calcRatio(wins, losses);
+    const totalFinished = wins + losses + ties;
+    const winRate = totalFinished > 0 ? Math.round((wins / totalFinished) * 100) : 0;
     const points = wins * 3 + ties * 1;
 
-    return {
+    // Sub-ratios
+    modes.bot.ratio = calcRatio(modes.bot.wins, modes.bot.losses).ratio;
+    modes.bot.win_rate = (modes.bot.wins + modes.bot.losses + modes.bot.ties) > 0
+      ? Math.round((modes.bot.wins / (modes.bot.wins + modes.bot.losses + modes.bot.ties)) * 100) : 0;
+
+    modes.wifi.ratio = calcRatio(modes.wifi.wins, modes.wifi.losses).ratio;
+    modes.wifi.win_rate = (modes.wifi.wins + modes.wifi.losses + modes.wifi.ties) > 0
+      ? Math.round((modes.wifi.wins / (modes.wifi.wins + modes.wifi.losses + modes.wifi.ties)) * 100) : 0;
+
+    modes.local.ratio = calcRatio(modes.local.wins, modes.local.losses).ratio;
+    modes.local.win_rate = (modes.local.wins + modes.local.losses + modes.local.ties) > 0
+      ? Math.round((modes.local.wins / (modes.local.wins + modes.local.losses + modes.local.ties)) * 100) : 0;
+
+    for (const k of Object.keys(botLevelBreakdown)) {
+      const item = botLevelBreakdown[k];
+      item.ratio = calcRatio(item.wins, item.losses).ratio;
+      const subTot = item.wins + item.losses + item.ties;
+      item.win_rate = subTot > 0 ? Math.round((item.wins / subTot) * 100) : 0;
+    }
+
+    const statsResult: UserStats = {
       total,
       completed,
       wins,
       losses,
       ties,
+      ratio: overallRatio.ratio,
+      ratio_numeric: overallRatio.numeric,
       win_rate: winRate,
       points,
+      current_streak: currentStreak,
+      best_streak: bestStreak,
       bot_games: botGames,
       wifi_games: wifiGames,
       local_games: localGames,
+      modes,
       bot_level_breakdown: botLevelBreakdown,
     };
+
+    const user = this.getUserById(userId);
+    if (user) {
+      user.stats = statsResult;
+    }
+
+    return statsResult;
+  }
+
+  public syncUserLocalStats(userId: number, localWins: number, localLosses: number, localTies: number): UserStats {
+    const user = this.getUserById(userId);
+    if (!user) throw new Error('Utilisateur introuvable');
+
+    const currentStats = this.getUserDetailedStats(userId);
+    const now = Math.floor(Date.now() / 1000);
+
+    // Si le joueur a accumulé plus de victoires/défaites en local que celles enregistrées dans ses sessions serveur
+    const winsToAdd = Math.max(0, localWins - currentStats.wins);
+    const lossesToAdd = Math.max(0, localLosses - currentStats.losses);
+    const tiesToAdd = Math.max(0, localTies - currentStats.ties);
+
+    for (let i = 0; i < winsToAdd; i++) {
+      this.sessions.push({
+        id: `sync_w_${userId}_${now}_${i}`,
+        session_key: 'local_sync',
+        user_id: userId,
+        mode: 'bot',
+        bot_level: 'medium',
+        board_size: 3,
+        result: 'X',
+        started_at: now - (winsToAdd - i) * 60,
+        completed_at: now - (winsToAdd - i) * 60 + 45,
+        user_symbol: 'X',
+      });
+    }
+
+    for (let i = 0; i < lossesToAdd; i++) {
+      this.sessions.push({
+        id: `sync_l_${userId}_${now}_${i}`,
+        session_key: 'local_sync',
+        user_id: userId,
+        mode: 'bot',
+        bot_level: 'medium',
+        board_size: 3,
+        result: 'O',
+        started_at: now - (lossesToAdd - i) * 50,
+        completed_at: now - (lossesToAdd - i) * 50 + 40,
+        user_symbol: 'X',
+      });
+    }
+
+    for (let i = 0; i < tiesToAdd; i++) {
+      this.sessions.push({
+        id: `sync_t_${userId}_${now}_${i}`,
+        session_key: 'local_sync',
+        user_id: userId,
+        mode: 'bot',
+        bot_level: 'medium',
+        board_size: 3,
+        result: 'TIE',
+        started_at: now - (tiesToAdd - i) * 40,
+        completed_at: now - (tiesToAdd - i) * 40 + 35,
+        user_symbol: 'X',
+      });
+    }
+
+    if (winsToAdd > 0 || lossesToAdd > 0 || tiesToAdd > 0) {
+      this.save();
+    }
+
+    return this.getUserDetailedStats(userId);
   }
 
   public getLeaderboard(limit = 50) {
@@ -428,6 +637,7 @@ class Database {
         wins: stats.wins,
         losses: stats.losses,
         ties: stats.ties,
+        ratio: stats.ratio,
         win_rate: stats.win_rate,
         points: stats.points,
         last_seen_at: user.last_seen_at,

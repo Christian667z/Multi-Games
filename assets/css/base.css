@@ -1346,6 +1346,296 @@ body::before {
   line-height: 1.5;
 }
 
+/* ==========================================================================
+   TABLEAU DE BORD STATISTIQUES JOUEUR (VICTOIRES, DÉFAITES, RATIO)
+   ========================================================================== */
+.stats-header-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.stats-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-kpi-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.15rem 1.25rem;
+  background: var(--card-inner);
+  border: 1px solid var(--card-border);
+  border-radius: 1rem;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+}
+
+.stat-kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.stat-kpi-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.stat-kpi-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.stat-kpi-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.stat-kpi-number {
+  font-size: 2.2rem;
+  font-weight: 900;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1.1;
+  margin-bottom: 0.35rem;
+}
+
+.stat-kpi-card.kpi-wins .stat-kpi-number {
+  color: #34d399;
+  text-shadow: 0 0 20px rgba(52, 211, 153, 0.25);
+}
+
+.stat-kpi-card.kpi-losses .stat-kpi-number {
+  color: #f87171;
+  text-shadow: 0 0 20px rgba(248, 113, 113, 0.25);
+}
+
+.stat-kpi-card.kpi-ratio .stat-kpi-number {
+  color: #60a5fa;
+  text-shadow: 0 0 20px rgba(96, 165, 250, 0.25);
+}
+
+.stat-kpi-card.kpi-winrate .stat-kpi-number {
+  color: #facc15;
+  text-shadow: 0 0 20px rgba(250, 204, 21, 0.25);
+}
+
+.stat-kpi-card.kpi-ratio {
+  background: radial-gradient(circle at 100% 0%, rgba(96, 165, 250, 0.08) 0%, var(--card-inner) 70%);
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+.stat-kpi-sub {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Jauge de ratio visuelle segmentée (Victoires / Nuls / Défaites) */
+.ratio-bar-card {
+  background: var(--card-inner);
+  border: 1px solid var(--card-border);
+  border-radius: 1rem;
+  padding: 1.25rem 1.4rem;
+  margin-bottom: 1.5rem;
+}
+
+.ratio-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ratio-bar-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.ratio-bar-track {
+  width: 100%;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 9999px;
+  overflow: hidden;
+  display: flex;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
+  margin-bottom: 0.8rem;
+}
+
+.ratio-seg-wins {
+  background: linear-gradient(90deg, #10b981, #34d399);
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.ratio-seg-ties {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.ratio-seg-losses {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.ratio-bar-legend {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+}
+
+.ratio-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+}
+
+.ratio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.ratio-dot.wins { background: #34d399; box-shadow: 0 0 6px rgba(52, 211, 153, 0.6); }
+.ratio-dot.ties { background: #fbbf24; box-shadow: 0 0 6px rgba(251, 191, 36, 0.6); }
+.ratio-dot.losses { background: #f87171; box-shadow: 0 0 6px rgba(248, 113, 113, 0.6); }
+
+/* Cartes détaillées par mode de jeu */
+.mode-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.mode-stat-card {
+  background: var(--card-inner);
+  border: 1px solid var(--card-border);
+  border-radius: 1rem;
+  padding: 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  transition: border-color 0.2s ease;
+}
+
+.mode-stat-card:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.mode-stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mode-stat-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mode-stat-badge {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.mode-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding-bottom: 0.45rem;
+}
+
+.mode-stat-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.mode-stat-row span {
+  color: var(--text-muted);
+}
+
+.mode-stat-row strong {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+}
+
+/* Bannière de synchronisation des victoires locales */
+.stat-sync-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 0.85rem;
+  padding: 0.85rem 1.15rem;
+  margin-bottom: 1.4rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.stat-sync-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.86rem;
+  color: #bfdbfe;
+}
+
+.btn-sync-stats {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #93c5fd;
+  border-radius: 0.55rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-sync-stats:hover {
+  background: rgba(59, 130, 246, 0.35);
+  color: #ffffff;
+}
+
 .account-note {
   margin-top: 1rem;
 }

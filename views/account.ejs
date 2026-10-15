@@ -67,6 +67,7 @@
                                 <span style="font-size: 0.72rem; background: rgba(255,255,255,0.08); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.12); padding: 0.2rem 0.6rem; border-radius: 9999px;">JOUEUR</span>
                             <% } %>
                             <span style="font-size: 0.78rem; background: rgba(250, 204, 21, 0.15); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.35); padding: 0.2rem 0.6rem; border-radius: 9999px;">Rang #<%= userRank %></span>
+                            <span style="font-size: 0.78rem; background: rgba(96, 165, 250, 0.15); color: #93c5fd; border: 1px solid rgba(96, 165, 250, 0.35); padding: 0.2rem 0.6rem; border-radius: 9999px;">Ratio V/D : <%= playerStats.ratio %></span>
                         </div>
                         <div class="account-hero-email"><%= user.email %></div>
                         <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.3rem;">
@@ -101,74 +102,315 @@
 
                 <!-- CONTENU ONGLET 1 : STATISTIQUES DÉTAILLÉES -->
                 <div class="account-tab-content active" id="tab-stats">
-                    <div class="hub-tag" style="margin-bottom: 0.8rem;">Performances Générales</div>
-                    <div class="account-stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));">
-                        <div class="account-stat">
-                            <strong style="color: #34d399;"><%= playerStats.wins %></strong>
-                            <span>Victoires</span>
+                    <!-- Bannière de détection de scores locaux à synchroniser -->
+                    <div id="local-sync-banner" class="stat-sync-box" style="display: none;">
+                        <div class="stat-sync-info">
+                            <span style="font-size: 1.25rem;">🔄</span>
+                            <div>
+                                <strong>Des parties jouées sur ce navigateur n'ont pas encore été synchronisées.</strong>
+                                <div style="font-size: 0.78rem; opacity: 0.85;" id="local-sync-detail">Fusionnez vos victoires locales dans votre compte en un clic.</div>
+                            </div>
                         </div>
-                        <div class="account-stat">
-                            <strong style="color: #f87171;"><%= playerStats.losses %></strong>
-                            <span>Défaites</span>
-                        </div>
-                        <div class="account-stat">
-                            <strong style="color: #fbbf24;"><%= playerStats.ties %></strong>
-                            <span>Matchs nuls</span>
-                        </div>
-                        <div class="account-stat">
-                            <strong style="color: <%= playerStats.win_rate >= 60 ? '#34d399' : playerStats.win_rate >= 40 ? '#fbbf24' : '#a1a1aa' %>;">
-                                <%= playerStats.win_rate %>%
-                            </strong>
-                            <span>Taux de victoire</span>
-                        </div>
-                        <div class="account-stat">
-                            <strong style="color: var(--primary);"><%= playerStats.points %></strong>
-                            <span>Points au classement</span>
-                        </div>
-                        <div class="account-stat">
-                            <strong><%= playerStats.total %></strong>
-                            <span>Parties lancées</span>
+                        <button type="button" class="btn-sync-stats" onclick="syncBrowserStats()">
+                            Synchroniser maintenant ➔
+                        </button>
+                    </div>
+
+                    <div class="stats-header-banner">
+                        <div class="hub-tag" style="margin: 0;">Performances &amp; Bilan Compétitif</div>
+                        <div style="display: flex; gap: 0.6rem; align-items: center; font-size: 0.84rem;">
+                            <% if (playerStats.current_streak > 1) { %>
+                                <span style="background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); padding: 0.25rem 0.65rem; border-radius: 9999px; font-weight: 700;">
+                                    🔥 <%= playerStats.current_streak %> Victoires d'affilée
+                                </span>
+                            <% } %>
+                            <% if (playerStats.best_streak > 1) { %>
+                                <span style="background: rgba(250, 204, 21, 0.15); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.3); padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.8rem;">
+                                    ⚡ Record : <%= playerStats.best_streak %> d'affilée
+                                </span>
+                            <% } %>
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.2rem; margin-top: 1.5rem;">
-                        <!-- Répartition des modes -->
-                        <div style="background: var(--card-inner); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.25rem;">
-                            <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.8rem;">Modes de jeu</h3>
-                            <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.9rem;">
-                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.4rem;">
-                                    <span style="color: var(--text-muted);">🤖 Contre le Bot</span>
+                    <!-- 1. GRILLE KPI PRINCIPALE : VICTOIRES, DÉFAITES, RATIO, TAUX, NULS, POINTS -->
+                    <div class="stats-kpi-grid">
+                        <!-- KPI 1 : VICTOIRES -->
+                        <div class="stat-kpi-card kpi-wins">
+                            <div class="stat-kpi-top">
+                                <span class="stat-kpi-title">Victoires</span>
+                                <span class="stat-kpi-icon">🏆</span>
+                            </div>
+                            <div class="stat-kpi-number" id="kpi-val-wins"><%= playerStats.wins %></div>
+                            <div class="stat-kpi-sub">
+                                <span>Total des victoires remportées</span>
+                            </div>
+                        </div>
+
+                        <!-- KPI 2 : DÉFAITES -->
+                        <div class="stat-kpi-card kpi-losses">
+                            <div class="stat-kpi-top">
+                                <span class="stat-kpi-title">Défaites</span>
+                                <span class="stat-kpi-icon">❌</span>
+                            </div>
+                            <div class="stat-kpi-number" id="kpi-val-losses"><%= playerStats.losses %></div>
+                            <div class="stat-kpi-sub">
+                                <span>Parties concédées</span>
+                            </div>
+                        </div>
+
+                        <!-- KPI 3 : RATIO V/D (MIS EN VALEUR) -->
+                        <div class="stat-kpi-card kpi-ratio">
+                            <div class="stat-kpi-top">
+                                <span class="stat-kpi-title" style="color: #93c5fd;">Ratio V / D</span>
+                                <span class="stat-kpi-icon">⚖️</span>
+                            </div>
+                            <div class="stat-kpi-number" id="kpi-val-ratio"><%= playerStats.ratio %></div>
+                            <div class="stat-kpi-sub">
+                                <% const rNum = parseFloat(playerStats.ratio) || 0; %>
+                                <% if (playerStats.losses === 0 && playerStats.wins > 0) { %>
+                                    <span style="color: #34d399; font-weight: 700;">Invaincu (0 défaite)</span>
+                                <% } else if (rNum >= 2.0) { %>
+                                    <span style="color: #60a5fa; font-weight: 700;">Excellente domination 🔥</span>
+                                <% } else if (rNum >= 1.0) { %>
+                                    <span style="color: #34d399; font-weight: 700;">Ratio positif ⚡</span>
+                                <% } else if (playerStats.completed > 0) { %>
+                                    <span style="color: #fbbf24; font-weight: 700;">En progression 🎯</span>
+                                <% } else { %>
+                                    <span>Aucune partie terminée</span>
+                                <% } %>
+                            </div>
+                        </div>
+
+                        <!-- KPI 4 : TAUX DE VICTOIRE -->
+                        <div class="stat-kpi-card kpi-winrate">
+                            <div class="stat-kpi-top">
+                                <span class="stat-kpi-title">Taux de Victoire</span>
+                                <span class="stat-kpi-icon">🎯</span>
+                            </div>
+                            <div class="stat-kpi-number" id="kpi-val-winrate"><%= playerStats.win_rate %>%</div>
+                            <div class="stat-kpi-sub">
+                                <span>Sur <%= playerStats.wins + playerStats.losses + playerStats.ties %> parties jouées</span>
+                            </div>
+                        </div>
+
+                        <!-- KPI 5 : MATCHS NULS -->
+                        <div class="stat-kpi-card">
+                            <div class="stat-kpi-top">
+                                <span class="stat-kpi-title">Matchs Nuls</span>
+                                <span class="stat-kpi-icon">🤝</span>
+                            </div>
+                            <div class="stat-kpi-number" style="color: #fbbf24;" id="kpi-val-ties"><%= playerStats.ties %></div>
+                            <div class="stat-kpi-sub">
+                                <span>Égalités parfaites</span>
+                            </div>
+                        </div>
+
+                        <!-- KPI 6 : POINTS AU CLASSEMENT -->
+                        <div class="stat-kpi-card">
+                            <div class="stat-kpi-top">
+                                <span class="stat-kpi-title">Points Classement</span>
+                                <span class="stat-kpi-icon">🎖️</span>
+                            </div>
+                            <div class="stat-kpi-number" style="color: var(--primary);"><%= playerStats.points %></div>
+                            <div class="stat-kpi-sub">
+                                <span>3 pts / Victoire, 1 pt / Nul</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. BARRE VISUELLE DU RATIO ET RÉPARTITION DES RÉSULTATS -->
+                    <% 
+                        const totalFinishedGames = playerStats.wins + playerStats.losses + playerStats.ties;
+                        const pctWins = totalFinishedGames > 0 ? Math.round((playerStats.wins / totalFinishedGames) * 100) : 0;
+                        const pctTies = totalFinishedGames > 0 ? Math.round((playerStats.ties / totalFinishedGames) * 100) : 0;
+                        const pctLosses = totalFinishedGames > 0 ? (100 - pctWins - pctTies) : 0;
+                    %>
+                    <div class="ratio-bar-card">
+                        <div class="ratio-bar-header">
+                            <div class="ratio-bar-title">
+                                <span>📊</span> Répartition Globale des Résultats
+                            </div>
+                            <div style="font-size: 0.82rem; color: var(--text-muted);">
+                                <strong><%= totalFinishedGames %></strong> parties terminées au total
+                            </div>
+                        </div>
+
+                        <!-- Piste segmentée -->
+                        <div class="ratio-bar-track" title="Victoires: <%= pctWins %>% | Nuls: <%= pctTies %>% | Défaites: <%= pctLosses %>%">
+                            <% if (totalFinishedGames === 0) { %>
+                                <div style="width: 100%; height: 100%; background: rgba(255,255,255,0.08);"></div>
+                            <% } else { %>
+                                <div class="ratio-seg-wins" style="width: <%= pctWins %>%;"></div>
+                                <div class="ratio-seg-ties" style="width: <%= pctTies %>%;"></div>
+                                <div class="ratio-seg-losses" style="width: <%= pctLosses %>%;"></div>
+                            <% } %>
+                        </div>
+
+                        <!-- Légende détaillée -->
+                        <div class="ratio-bar-legend">
+                            <div class="ratio-legend-item">
+                                <span class="ratio-dot wins"></span>
+                                <span>Victoires : <strong style="color: #34d399;"><%= playerStats.wins %></strong> (<%= pctWins %>%)</span>
+                            </div>
+                            <div class="ratio-legend-item">
+                                <span class="ratio-dot ties"></span>
+                                <span>Matchs nuls : <strong style="color: #fbbf24;"><%= playerStats.ties %></strong> (<%= pctTies %>%)</span>
+                            </div>
+                            <div class="ratio-legend-item">
+                                <span class="ratio-dot losses"></span>
+                                <span>Défaites : <strong style="color: #f87171;"><%= playerStats.losses %></strong> (<%= pctLosses %>%)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. CARTES D'ANALYSE DÉTAILLÉES PAR MODE DE JEU -->
+                    <div class="mode-stats-grid">
+                        <!-- Mode 1 : Contre l'IA Space -->
+                        <div class="mode-stat-card">
+                            <div class="mode-stat-header">
+                                <div class="mode-stat-title">
+                                    <span>🤖</span> Contre l'IA Space
+                                </div>
+                                <span class="mode-stat-badge">Solo vs Bot</span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 0.55rem;">
+                                <div class="mode-stat-row">
+                                    <span>Ratio V / D</span>
+                                    <strong style="color: #60a5fa;"><%= playerStats.modes?.bot?.ratio || '0.00' %></strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Victoires</span>
+                                    <strong style="color: #34d399;"><%= playerStats.modes?.bot?.wins || 0 %></strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Défaites</span>
+                                    <strong style="color: #f87171;"><%= playerStats.modes?.bot?.losses || 0 %></strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Matchs nuls</span>
+                                    <strong style="color: #fbbf24;"><%= playerStats.modes?.bot?.ties || 0 %></strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Taux de réussite</span>
+                                    <strong style="color: #facc15;"><%= playerStats.modes?.bot?.win_rate || 0 %>%</strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Parties lancées</span>
                                     <strong><%= playerStats.bot_games %></strong>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.4rem;">
-                                    <span style="color: var(--text-muted);">📶 Duels Wi-Fi LAN</span>
+                            </div>
+                        </div>
+
+                        <!-- Mode 2 : Duels Wi-Fi LAN -->
+                        <div class="mode-stat-card">
+                            <div class="mode-stat-header">
+                                <div class="mode-stat-title">
+                                    <span>📶</span> Duels Wi-Fi LAN
+                                </div>
+                                <span class="mode-stat-badge">Multijoueur</span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 0.55rem;">
+                                <div class="mode-stat-row">
+                                    <span>Ratio V / D</span>
+                                    <strong style="color: #60a5fa;"><%= playerStats.modes?.wifi?.ratio || '0.00' %></strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Victoires</span>
+                                    <strong style="color: #34d399;"><%= playerStats.modes?.wifi?.wins || 0 %></strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Défaites</span>
+                                    <strong style="color: #f87171;"><%= playerStats.modes?.wifi?.losses || 0 %></strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Matchs nuls</span>
+                                    <strong style="color: #fbbf24;"><%= playerStats.modes?.wifi?.ties || 0 %></strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Taux de réussite</span>
+                                    <strong style="color: #facc15;"><%= playerStats.modes?.wifi?.win_rate || 0 %>%</strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Parties lancées</span>
                                     <strong><%= playerStats.wifi_games %></strong>
                                 </div>
-                                <div style="display: flex; justify-content: space-between;">
-                                    <span style="color: var(--text-muted);">👥 1v1 Local</span>
+                            </div>
+                        </div>
+
+                        <!-- Mode 3 : 1v1 Local -->
+                        <div class="mode-stat-card">
+                            <div class="mode-stat-header">
+                                <div class="mode-stat-title">
+                                    <span>👥</span> 1v1 Local
+                                </div>
+                                <span class="mode-stat-badge">Même écran</span>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 0.55rem;">
+                                <div class="mode-stat-row">
+                                    <span>Ratio V / D</span>
+                                    <strong style="color: #60a5fa;"><%= playerStats.modes?.local?.ratio || '0.00' %></strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Victoires</span>
+                                    <strong style="color: #34d399;"><%= playerStats.modes?.local?.wins || 0 %></strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Défaites</span>
+                                    <strong style="color: #f87171;"><%= playerStats.modes?.local?.losses || 0 %></strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Matchs nuls</span>
+                                    <strong style="color: #fbbf24;"><%= playerStats.modes?.local?.ties || 0 %></strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Taux de réussite</span>
+                                    <strong style="color: #facc15;"><%= playerStats.modes?.local?.win_rate || 0 %>%</strong>
+                                </div>
+                                <div class="mode-stat-row">
+                                    <span>Parties lancées</span>
                                     <strong><%= playerStats.local_games %></strong>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Mémoire du Bot Évolutif -->
-                        <div style="background: var(--card-inner); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.25rem;">
-                            <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.8rem;">Intelligence Adaptative</h3>
-                            <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.9rem;">
-                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.4rem;">
-                                    <span style="color: var(--text-muted);">Niveau d'adaptation</span>
-                                    <strong style="color: var(--primary);">
-                                        <%= botStats.learning_level > 0 ? '+' + botStats.learning_level : botStats.learning_level %>
-                                    </strong>
+                    <!-- 4. PERFORMANCES CONTRE CHAQUE NIVEAU D'IA -->
+                    <div style="background: var(--card-inner); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.3rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin: 0;">
+                                🧬 Détail des Affrontements par Niveau de Difficulté
+                            </h3>
+                            <span style="font-size: 0.8rem; color: var(--text-dim);">Mémoire d'IA : <%= botStats.games_learned %> parties apprises</span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.9rem;">
+                            <% 
+                                const levelsMeta = [
+                                    { key: 'novice', label: 'Novice', emoji: '🐣', color: '#34d399' },
+                                    { key: 'medium', label: 'Intermédiaire', emoji: '🤖', color: '#60a5fa' },
+                                    { key: 'advanced', label: 'Avancé', emoji: '🧠', color: '#a78bfa' },
+                                    { key: 'legend', label: 'Légende', emoji: '👑', color: '#facc15' },
+                                    { key: 'adaptive', label: 'Évolutif', emoji: '🧬', color: '#f43f5e' },
+                                ];
+                            %>
+                            <% levelsMeta.forEach(function(lvl) { %>
+                                <% const bStat = playerStats.bot_level_breakdown?.[lvl.key] || { wins: 0, losses: 0, ties: 0, ratio: '0.00', win_rate: 0 }; %>
+                                <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 0.75rem; padding: 0.85rem;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                                        <span style="font-weight: 700; font-size: 0.88rem; color: <%= lvl.color %>;"><%= lvl.emoji %> <%= lvl.label %></span>
+                                        <span style="font-size: 0.75rem; color: var(--text-dim);">Ratio <%= bStat.ratio %></span>
+                                    </div>
+                                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 800; color: #fff; margin-bottom: 0.2rem;">
+                                        <span style="color: #34d399;"><%= bStat.wins %>V</span> - <span style="color: #f87171;"><%= bStat.losses %>D</span>
+                                        <% if (bStat.ties > 0) { %>
+                                            - <span style="color: #fbbf24;"><%= bStat.ties %>N</span>
+                                        <% } %>
+                                    </div>
+                                    <div style="font-size: 0.76rem; color: var(--text-muted);">
+                                        <%= bStat.win_rate %>% de victoires
+                                    </div>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.4rem;">
-                                    <span style="color: var(--text-muted);">Parties apprises</span>
-                                    <strong><%= botStats.games_learned %></strong>
-                                </div>
-                                <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.3rem;">
-                                    L'IA apprend spécifiquement contre vos habitudes de jeu et évite ses erreurs passées.
-                                </div>
-                            </div>
+                            <% }); %>
                         </div>
                     </div>
                 </div>
@@ -382,7 +624,8 @@
                                             <%= entry.losses %>
                                         </td>
                                         <td style="text-align: center; font-weight: 700;">
-                                            <%= entry.win_rate %>%
+                                            <span style="color: #60a5fa;"><%= entry.ratio || '0.00' %></span>
+                                            <div style="font-size: 0.72rem; color: var(--text-dim); font-weight: 500;"><%= entry.win_rate %>%</div>
                                         </td>
                                     </tr>
                                 <% }); %>
@@ -639,6 +882,61 @@
         function openForgotModal() {
             alert('Pour réinitialiser votre mot de passe, contactez l’administrateur à spacedev@thegoat.com ou utilisez votre email de secours.');
         }
+
+        // Synchronisation des statistiques locales du navigateur
+        function checkLocalStats() {
+            const w = parseInt(localStorage.getItem('mg_stat_wins') || '0', 10);
+            const l = parseInt(localStorage.getItem('mg_stat_losses') || '0', 10);
+            const t = parseInt(localStorage.getItem('mg_stat_ties') || '0', 10);
+            const serverWins = <%= playerStats.wins || 0 %>;
+            const serverLosses = <%= playerStats.losses || 0 %>;
+
+            if (w > serverWins || l > serverLosses) {
+                const banner = document.getElementById('local-sync-banner');
+                const detail = document.getElementById('local-sync-detail');
+                if (banner && detail) {
+                    detail.textContent = `Navigateur : ${w} Victoires | ${l} Défaites (Compte : ${serverWins} V | ${serverLosses} D). Cliquez pour fusionner.`;
+                    banner.style.display = 'flex';
+                }
+            }
+        }
+
+        async function syncBrowserStats() {
+            const w = parseInt(localStorage.getItem('mg_stat_wins') || '0', 10);
+            const l = parseInt(localStorage.getItem('mg_stat_losses') || '0', 10);
+            const t = parseInt(localStorage.getItem('mg_stat_ties') || '0', 10);
+            try {
+                const res = await fetch('games/morpion/api.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': window.MG_CSRF || ''
+                    },
+                    body: JSON.stringify({
+                        action: 'sync_stats',
+                        wins: w,
+                        losses: l,
+                        ties: t
+                    })
+                });
+                const data = await res.json();
+                if (data.success && data.stats) {
+                    document.getElementById('local-sync-banner').style.display = 'none';
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Erreur lors de la synchronisation.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erreur réseau lors de la synchronisation.');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            <% if (user) { %>
+                checkLocalStats();
+            <% } %>
+        });
     </script>
     <% if (user) { %>
         <script>window.MG_CSRF = <%- JSON.stringify(csrfToken) %>;</script>
