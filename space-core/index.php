@@ -1,7 +1,0 @@
-<?php
-require __DIR__.'/bootstrap.php';
-header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'");
-header('Cache-Control: no-store');
-?>
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="space-csrf" content="<?=htmlspecialchars($_SESSION['space_csrf'],ENT_QUOTES,'UTF-8')?>"><title>Space Core — Multi-Games</title><link rel="stylesheet" href="assets/space.css"><script src="assets/space.js" defer></script></head>
-<body><main><header><span class="orb">✦</span><div><h1>Space Core</h1><p>Ton compagnon Multi-Games</p></div><a class="home-link" href="../index.php">Retour aux jeux</a><button id="clear" type="button">Nouvelle discussion</button></header><section id="chat" role="log" aria-live="polite" aria-label="Conversation"></section><p id="status" role="status"></p><form id="form"><label for="message" class="sr">Ton message</label><input id="message" maxlength="4000" placeholder="Parle à Space…" autocomplete="off" required><button id="mic" type="button" aria-label="Activer le microphone">🎙</button><button id="send" type="submit">Envoyer</button></form><footer><label><input type="checkbox" id="voice"> Lire les réponses à voix haute</label><button id="stop" type="button">Arrêter la voix</button><p>Assistant IA · Les actions dépendent des jeux configurés.</p></footer></main></body></html>

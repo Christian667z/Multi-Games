@@ -1,0 +1,30 @@
+{
+  "name": "multi-games",
+  "version": "1.0.0",
+  "description": "Multi-Games - Plateforme de jeux multijoueur PvP 4K et assistant Space Core",
+  "type": "module",
+  "main": "server.ts",
+  "scripts": {
+    "dev": "tsx server.ts",
+    "build": "echo 'build ok'",
+    "lint": "tsc --noEmit",
+    "start": "tsx server.ts"
+  },
+  "dependencies": {
+    "@google/genai": "^2.30.0",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^5.0.0",
+    "@types/express-session": "^1.18.1",
+    "@types/node": "^22.10.7",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,7 +1,0 @@
-Options -Indexes
-<FilesMatch "^(config|bootstrap)\.php$">
- Require all denied
-</FilesMatch>
-<FilesMatch "\.(md|sql|log)$">
- Require all denied
-</FilesMatch>

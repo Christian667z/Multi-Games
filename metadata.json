@@ -1,0 +1,7 @@
+{
+  "name": "Multi-Games",
+  "description": "Plateforme de jeux multijoueur PvP 4K avec Morpion, modes Local/Bot/Wi-Fi, thèmes dynamiques et assistant Space Core IA.",
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

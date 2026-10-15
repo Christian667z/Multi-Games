@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="red">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compte joueur - Multi-Games</title>
+    <link rel="stylesheet" href="assets/css/themes/themes.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <style><%- customThemeCss %></style>
+    <script src="assets/js/theme.js"></script>
+</head>
+<body>
+    <header class="topbar">
+        <a href="index.php" class="brand-wrapper">
+            <div class="brand-title">Multi-Games <span>Compte joueur</span></div>
+        </a>
+        <div class="topbar-actions">
+            <a class="btn-topbar" href="index.php">Retour aux jeux</a>
+            <% if (user && user.role === 'admin') { %>
+                <a class="btn-topbar" href="admin.php">Administration</a>
+            <% } %>
+            <% if (user) { %>
+                <form method="post" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                    <input type="hidden" name="action" value="logout">
+                    <button class="btn-topbar" type="submit">Déconnexion</button>
+                </form>
+            <% } %>
+        </div>
+    </header>
+
+    <main class="main-container account-page">
+        <% if (error) { %>
+            <div class="account-alert" role="alert"><%= error %></div>
+        <% } %>
+        <% if (user) { %>
+            <section class="account-card">
+                <div class="hub-tag">Compte <%= user.role === 'admin' ? 'administrateur' : 'joueur' %></div>
+                <h1 class="card-title">Bienvenue, <%= user.display_name %></h1>
+                <p class="card-desc"><%= user.email %></p>
+                <% if (user.role === 'admin') { %>
+                    <a class="btn-primary-action account-action" href="admin.php">Ouvrir le tableau de bord</a>
+                <% } else { %>
+                    <div class="account-stat-grid">
+                        <div class="account-stat"><strong><%= playerStats.total %></strong><span>Parties lancées</span></div>
+                        <div class="account-stat"><strong><%= playerStats.completed %></strong><span>Parties terminées</span></div>
+                        <div class="account-stat"><strong><%= playerStats.bot_games %></strong><span>Duels contre un bot</span></div>
+                        <div class="account-stat"><strong><%= botStats.games_learned %></strong><span>Parties apprises par le bot évolutif</span></div>
+                    </div>
+                    <p class="account-note">Le bot mémorise vos parties et évite progressivement les coups qui l’ont fait perdre. Cette mémoire est propre à votre compte.</p>
+                    <a class="btn-primary-action account-action" href="games/morpion/index.php">Jouer une partie</a>
+                <% } %>
+            </section>
+        <% } else { %>
+            <section class="account-card">
+                <div class="hub-tag">Espace joueur</div>
+                <h1 class="hub-title">Connexion <span>/ Inscription</span></h1>
+                <p class="hub-subtitle account-intro">Connectez-vous pour suivre vos parties et conserver l’apprentissage du bot sur votre compte.</p>
+                <div class="account-forms">
+                    <form method="post" class="account-form">
+                        <h2 class="card-title">Se connecter</h2>
+                        <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                        <input type="hidden" name="action" value="login">
+                        <label for="login-email">Adresse e-mail</label>
+                        <input id="login-email" name="email" type="email" autocomplete="username" required maxlength="190">
+                        <label for="login-password">Mot de passe</label>
+                        <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+                        <button class="btn-primary-action" type="submit">Connexion</button>
+                    </form>
+                    <form method="post" class="account-form">
+                        <h2 class="card-title">Créer un compte</h2>
+                        <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                        <input type="hidden" name="action" value="register">
+                        <label for="register-name">Pseudo</label>
+                        <input id="register-name" name="display_name" type="text" autocomplete="nickname" required minlength="2" maxlength="30">
+                        <label for="register-email">Adresse e-mail</label>
+                        <input id="register-email" name="email" type="email" autocomplete="email" required maxlength="190">
+                        <label for="register-password">Mot de passe (10 caractères minimum)</label>
+                        <input id="register-password" name="password" type="password" autocomplete="new-password" required minlength="10">
+                        <button class="btn-primary-action" type="submit">Créer mon compte</button>
+                    </form>
+                </div>
+                <p class="account-note">Le compte administrateur est réservé à son propriétaire et ne peut pas être créé depuis le formulaire.</p>
+            </section>
+        <% } %>
+    </main>
+    <footer class="footer">© 2026 Space &amp; Multi-Games</footer>
+    <% if (user) { %>
+        <script>window.MG_CSRF = <%- JSON.stringify(csrfToken) %>;</script>
+        <script src="assets/js/account-presence.js" data-api="games/morpion/api.php" defer></script>
+    <% } %>
+</body>
+</html>

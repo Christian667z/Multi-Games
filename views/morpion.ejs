@@ -1,27 +1,3 @@
-<?php
-/**
- * Multi-Games - Jeu de Morpion
- * Interface Haute Définition 4K avec Thèmes Dynamiques & Sans Néon
- */
-require_once dirname(dirname(__DIR__)) . '/includes/app.php';
-$user = mg_current_user();
-$playerDisplayName = $user ? $user['display_name'] : 'Joueur 1';
-$requestedGridSize = filter_var($_GET['grid_size'] ?? null, FILTER_VALIDATE_INT);
-if (!in_array($requestedGridSize, [3, 5, 10, 12, 15, 19], true)) {
-    $requestedGridSize = null;
-}
-$gameThemes = mg_db()->query('SELECT theme_key, name FROM game_themes ORDER BY custom, name')->fetchAll();
-$gameSymbols = mg_db()->query('SELECT symbol, label FROM game_symbols ORDER BY custom, id')->fetchAll();
-
-// Détection de l'adresse IP locale pour le partage Wi-Fi automatique
-$serverIp = gethostbyname(gethostname());
-if ($serverIp === '127.0.0.1' || empty($serverIp) || str_starts_with($serverIp, '127.')) {
-    $serverIp = $_SERVER['SERVER_ADDR'] ?? '172.20.10.4';
-}
-$port = $_SERVER['SERVER_PORT'] ?? '80';
-$portStr = ($port === '80' || $port === 80) ? '' : ':' . $port;
-$lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
-?>
 <!DOCTYPE html>
 <html lang="fr" data-theme="red">
 <head>
@@ -29,20 +5,17 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Morpion by Space - Multi-Games 4K</title>
 
-    <!-- Injection de l'URL LAN fiable calculée en PHP -->
     <script>
-        window.LAN_BASE_URL = <?= json_encode($lanBaseUrl) ?>;
-        window.MG_CSRF = <?= json_encode(mg_csrf_token()) ?>;
-        window.SPACE_CORE_GRID_SIZE = <?= json_encode($requestedGridSize) ?>;
-        window.MG_PLAYER_NAME = <?= json_encode($playerDisplayName, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.LAN_BASE_URL = <%- JSON.stringify(lanBaseUrl) %>;
+        window.MG_CSRF = <%- JSON.stringify(csrfToken) %>;
+        window.SPACE_CORE_GRID_SIZE = <%- JSON.stringify(requestedGridSize) %>;
+        window.MG_PLAYER_NAME = <%- JSON.stringify(playerDisplayName) %>;
     </script>
 
-    <!-- Stylesheets -->
     <link rel="stylesheet" href="../../assets/css/themes/themes.css">
     <link rel="stylesheet" href="../../assets/css/base.css">
-    <style><?= mg_custom_theme_css() ?></style>
+    <style><%- customThemeCss %></style>
 
-    <!-- Scripts Principaux -->
     <script src="../../assets/js/theme.js"></script>
     <script src="../../assets/js/audio.js" defer></script>
     <script src="bot.js" defer></script>
@@ -51,7 +24,6 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
 </head>
 <body>
 
-    <!-- Barre supérieure de navigation / Statut Space -->
     <header class="topbar">
         <a href="../../index.php" class="brand-wrapper" title="Retour à l'accueil Multi-Games">
             <div class="brand-icon">
@@ -63,17 +35,16 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
 
         <div class="topbar-actions">
             <a class="btn-topbar" href="../../space-core/">Parler à Space</a>
-            <?php if ($user): ?>
-                <a class="btn-topbar" href="../../account.php"><?= mg_escape($user['display_name']) ?></a>
-                <?php if ($user['role'] === 'admin'): ?>
+            <% if (user) { %>
+                <a class="btn-topbar" href="../../account.php"><%= user.display_name %></a>
+                <% if (user.role === 'admin') { %>
                     <a class="btn-topbar" href="../../admin.php">Administration</a>
-                <?php endif; ?>
-            <?php else: ?>
+                <% } %>
+            <% } else { %>
                 <a class="btn-topbar" href="../../account.php">Connexion</a>
-            <?php endif; ?>
+            <% } %>
 
-            <!-- Bouton Sélecteur Thème -->
-            <button class="btn-topbar palette-btn" id="theme-palette-btn" title="Changer de thème (Rouge, Ambre, Violet, Cyan, Émeraude)">
+            <button class="btn-topbar palette-btn" id="theme-palette-btn" title="Changer de thème">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
                     <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
@@ -83,7 +54,6 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
                 </svg>
             </button>
 
-            <!-- Bouton Partager -->
             <button class="btn-topbar" id="btn-share-trigger" title="Partager ou créer une partie en ligne">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
@@ -92,13 +62,11 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
                 <span>Partager</span>
             </button>
 
-            <!-- Statistiques Persistantes -->
             <div class="level-badge" id="stats-pill" style="cursor: pointer;" title="Voir vos statistiques" onclick="document.getElementById('stats-modal').style.display='flex'">
                 <span>🏆</span>
                 <div id="stats-pill-text">0 V | 0 D</div>
             </div>
 
-            <!-- Retour Hub -->
             <a href="../../index.php" class="btn-topbar" title="Retourner à la liste des jeux">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -106,7 +74,6 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
                 <span>Hub Jeux</span>
             </a>
 
-            <!-- Options / Paramètres -->
             <button class="btn-topbar admin-btn" id="open-settings">
                 <span>⚙️ Options</span>
             </button>
@@ -138,7 +105,6 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
                         <svg width="130" height="75" viewBox="0 0 140 80" fill="none" stroke="currentColor">
                             <path d="M20 20 L120 20 M20 40 L120 40 M20 60 L120 60" stroke="var(--card-border)" stroke-width="2"/>
                             <path d="M45 10 L45 70 M85 10 L85 70" stroke="var(--card-border)" stroke-width="2"/>
-                            <!-- X et O -->
                             <text x="25" y="36" fill="var(--color-x)" font-size="18" font-weight="900" font-family="sans-serif">X</text>
                             <text x="60" y="36" fill="var(--color-o)" font-size="18" font-weight="900" font-family="sans-serif">O</text>
                             <text x="98" y="36" fill="var(--color-x)" font-size="18" font-weight="900" font-family="sans-serif">X</text>
@@ -248,7 +214,7 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
                 <span>←</span> Quitter la partie
             </button>
 
-            <!-- Tableau des scores complet (avec nuls) -->
+            <!-- Tableau des scores -->
             <div class="game-scoreboard">
                 <div class="score-player" id="player-x-box">
                     <span id="symbol-x-score" style="color: var(--color-x);">✕</span>
@@ -282,34 +248,29 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
             </label>
             <label class="arena-setting">Thème
                 <select class="input-field theme-selector-select" aria-label="Thème de couleur" onchange="window.setSpecificTheme(this.value)">
-                    <?php foreach ($gameThemes as $theme): ?>
-                        <option value="<?= mg_escape($theme['theme_key']) ?>"><?= mg_escape($theme['name']) ?></option>
-                    <?php endforeach; ?>
+                    <% gameThemes.forEach(function(theme) { %>
+                        <option value="<%= theme.theme_key %>"><%= theme.name %></option>
+                    <% }); %>
                 </select>
             </label>
             <label class="arena-setting">Symbole X
                 <select id="arena-symbol-x-select" class="input-field" aria-label="Symbole du joueur X">
-                    <?php foreach ($gameSymbols as $symbol): ?>
-                        <option value="<?= mg_escape($symbol['symbol']) ?>"><?= mg_escape($symbol['symbol']) ?></option>
-                    <?php endforeach; ?>
+                    <% gameSymbols.forEach(function(symbol) { %>
+                        <option value="<%= symbol.symbol %>"><%= symbol.symbol %></option>
+                    <% }); %>
                 </select>
             </label>
             <label class="arena-setting">Symbole O
                 <select id="arena-symbol-o-select" class="input-field" aria-label="Symbole du joueur O">
-                    <?php foreach ($gameSymbols as $symbol): ?>
-                        <option value="<?= mg_escape($symbol['symbol']) ?>"><?= mg_escape($symbol['symbol']) ?></option>
-                    <?php endforeach; ?>
+                    <% gameSymbols.forEach(function(symbol) { %>
+                        <option value="<%= symbol.symbol %>"><%= symbol.symbol %></option>
+                    <% }); %>
                 </select>
             </label>
         </div>
 
-        <!-- Indicateur clair de tour -->
         <div id="turn-indicator" class="turn-indicator">À votre tour (✕)</div>
-
-        <!-- Bannière d'état (Victoire, Égalité, Déconnexion) -->
         <div id="status-banner" style="display: none; font-size: 1.25rem; font-weight: 800; color: var(--primary); margin-bottom: 0.8rem; text-align: center;"></div>
-
-        <!-- Conteneur de la grille -->
         <div class="board-container" id="board-container">
             <div id="game-board" class="board-grid-3x3"></div>
         </div>
@@ -346,9 +307,9 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
             <h3 class="modal-title">Match Hors Ligne</h3>
             <p class="modal-subtitle">Paramétrez les joueurs et le format de la grille.</p>
 
-            <div class="input-group" <?= $user ? 'hidden' : '' ?>>
+            <div class="input-group" <%= user ? 'hidden' : '' %>>
                 <label class="input-label">Pseudo Joueur 1 (✕) :</label>
-                <input type="text" id="local-p1-name" class="input-field" value="<?= mg_escape($playerDisplayName) ?>" maxlength="30" <?= $user ? 'readonly' : '' ?>>
+                <input type="text" id="local-p1-name" class="input-field" value="<%= playerDisplayName %>" maxlength="30" <%= user ? 'readonly' : '' %>>
             </div>
 
             <div class="input-group">
@@ -360,8 +321,8 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
                 <label class="input-label">Type de grille :</label>
                 <select id="local-grid-size" class="input-field">
                     <option value="3" selected>Classique 3x3 (3 pour gagner)</option><option value="5">5x5 (4 pour gagner)</option>
-                        <option value="10">10x10 (5 pour gagner)</option><option value="12">12x12 (5 pour gagner)</option>
-                        <option value="15">15x15 (5 pour gagner)</option><option value="19">19x19 (5 pour gagner)</option>
+                    <option value="10">10x10 (5 pour gagner)</option><option value="12">12x12 (5 pour gagner)</option>
+                    <option value="15">15x15 (5 pour gagner)</option><option value="19">19x19 (5 pour gagner)</option>
                 </select>
             </div>
 
@@ -381,9 +342,9 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
             <p class="modal-subtitle">Difficulté : <strong id="bot-modal-level-name" style="color: var(--primary);">Intermédiaire</strong></p>
             <input type="hidden" id="bot-level-selected" value="medium">
 
-            <div class="input-group" <?= $user ? 'hidden' : '' ?>>
+            <div class="input-group" <%= user ? 'hidden' : '' %>>
                 <label class="input-label">Votre Pseudo :</label>
-                <input type="text" id="bot-player-name" class="input-field" value="<?= mg_escape($playerDisplayName) ?>" maxlength="30" <?= $user ? 'readonly' : '' ?>>
+                <input type="text" id="bot-player-name" class="input-field" value="<%= playerDisplayName %>" maxlength="30" <%= user ? 'readonly' : '' %>>
             </div>
 
             <div class="input-group">
@@ -419,9 +380,9 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
             <h3 class="modal-title">Créer un salon Wi-Fi</h3>
             <p class="modal-subtitle">Hébergez une partie sur votre réseau local.</p>
 
-            <div class="input-group" <?= $user ? 'hidden' : '' ?>>
+            <div class="input-group" <%= user ? 'hidden' : '' %>>
                 <label class="input-label">Joueur X (Hôte) :</label>
-                <input type="text" id="wifi-host-name" class="input-field" value="<?= mg_escape($playerDisplayName) ?>" maxlength="30" <?= $user ? 'readonly' : '' ?>>
+                <input type="text" id="wifi-host-name" class="input-field" value="<%= playerDisplayName %>" maxlength="30" <%= user ? 'readonly' : '' %>>
             </div>
 
             <div class="input-group">
@@ -465,7 +426,7 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
             <div class="input-group">
                 <label class="input-label">Lien direct pour mobile ou PC :</label>
                 <div class="copy-link-box">
-                    <input type="text" class="copy-link-input" id="wifi-share-link" readonly value="<?= htmlspecialchars($lanBaseUrl) ?>">
+                    <input type="text" class="copy-link-input" id="wifi-share-link" readonly value="<%= lanBaseUrl %>">
                     <button class="btn-copy" id="btn-copy-wifi-link">Copier</button>
                 </div>
             </div>
@@ -477,16 +438,16 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
         </div>
     </div>
 
-    <!-- MODALE : REJOINDRRE SALON WI-FI -->
+    <!-- MODALE : REJOINDRE SALON WI-FI -->
     <div class="modal-overlay" id="wifi-join-modal">
         <div class="modal-content">
             <button class="modal-close-btn">&times;</button>
             <h3 class="modal-title">Rejoindre une partie Wi-Fi</h3>
             <p class="modal-subtitle">Entrez le code à 4 lettres affiché sur l'écran de l'hôte.</p>
 
-            <div class="input-group" <?= $user ? 'hidden' : '' ?>>
+            <div class="input-group" <%= user ? 'hidden' : '' %>>
                 <label class="input-label">Votre pseudo :</label>
-                <input type="text" id="join-player-name" class="input-field" placeholder="Ex: Alex" value="<?= mg_escape($playerDisplayName) ?>" maxlength="30" <?= $user ? 'readonly' : '' ?>>
+                <input type="text" id="join-player-name" class="input-field" placeholder="Ex: Alex" value="<%= playerDisplayName %>" maxlength="30" <%= user ? 'readonly' : '' %>>
             </div>
 
             <div class="input-group">
@@ -509,9 +470,9 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
             <h3 class="modal-title">Configuration Tournoi</h3>
             <p class="modal-subtitle">Jouez en plusieurs manches avec tableau des scores conservé.</p>
 
-            <div class="input-group" <?= $user ? 'hidden' : '' ?>>
+            <div class="input-group" <%= user ? 'hidden' : '' %>>
                 <label class="input-label">Pseudo Joueur 1 :</label>
-                <input type="text" id="tourney-p1-name" class="input-field" value="<?= mg_escape($playerDisplayName) ?>" maxlength="30" <?= $user ? 'readonly' : '' ?>>
+                <input type="text" id="tourney-p1-name" class="input-field" value="<%= playerDisplayName %>" maxlength="30" <%= user ? 'readonly' : '' %>>
             </div>
 
             <div class="input-group">
@@ -610,27 +571,27 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
             <div class="input-group">
                 <label class="input-label">Thème Couleur :</label>
                 <select class="input-field theme-selector-select" onchange="window.setSpecificTheme(this.value)">
-                    <?php foreach ($gameThemes as $theme): ?>
-                        <option value="<?= mg_escape($theme['theme_key']) ?>"><?= mg_escape($theme['name']) ?></option>
-                    <?php endforeach; ?>
+                    <% gameThemes.forEach(function(theme) { %>
+                        <option value="<%= theme.theme_key %>"><%= theme.name %></option>
+                    <% }); %>
                 </select>
             </div>
-                <div class="input-group">
-                    <label class="input-label" for="symbol-x-select">Symbole du joueur X :</label>
-                    <select id="symbol-x-select" class="input-field">
-                        <?php foreach ($gameSymbols as $symbol): ?>
-                            <option value="<?= mg_escape($symbol['symbol']) ?>"><?= mg_escape($symbol['symbol'] . ' — ' . $symbol['label']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label class="input-label" for="symbol-o-select">Symbole du joueur O :</label>
-                    <select id="symbol-o-select" class="input-field">
-                        <?php foreach ($gameSymbols as $symbol): ?>
-                            <option value="<?= mg_escape($symbol['symbol']) ?>"><?= mg_escape($symbol['symbol'] . ' — ' . $symbol['label']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+            <div class="input-group">
+                <label class="input-label" for="symbol-x-select">Symbole du joueur X :</label>
+                <select id="symbol-x-select" class="input-field">
+                    <% gameSymbols.forEach(function(symbol) { %>
+                        <option value="<%= symbol.symbol %>"><%= symbol.symbol + ' — ' + symbol.label %></option>
+                    <% }); %>
+                </select>
+            </div>
+            <div class="input-group">
+                <label class="input-label" for="symbol-o-select">Symbole du joueur O :</label>
+                <select id="symbol-o-select" class="input-field">
+                    <% gameSymbols.forEach(function(symbol) { %>
+                        <option value="<%= symbol.symbol %>"><%= symbol.symbol + ' — ' + symbol.label %></option>
+                    <% }); %>
+                </select>
+            </div>
 
             <div class="input-group">
                 <label class="input-label">Effets Sonores (Web Audio API) :</label>
@@ -642,21 +603,19 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
             <div class="input-group" style="margin-top: 1rem;">
                 <label class="input-label">Adresse IP Locale Détectée :</label>
                 <div style="font-family: monospace; font-size: 0.9rem; color: var(--primary); padding: 0.5rem 0;">
-                    <?= htmlspecialchars($serverIp) ?>
+                    <%= serverIp %>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Synchroniser le libellé audio dès l'ouverture
         document.addEventListener('DOMContentLoaded', () => {
             const soundBtn = document.getElementById('sound-toggle-btn');
             if (soundBtn && typeof SoundEffects !== 'undefined') {
                 soundBtn.textContent = SoundEffects.isMuted() ? '🔇 Sons Désactivés' : '🔊 Sons Activés';
             }
 
-            // Mettre à jour stats modal quand ouvert
             const statsBtn = document.getElementById('stats-pill');
             if (statsBtn) {
                 statsBtn.addEventListener('click', () => {
@@ -670,7 +629,6 @@ $lanBaseUrl = "http://{$serverIp}{$portStr}/Multi-Games/games/morpion/";
     </script>
     <script src="../../assets/js/account-presence.js" data-api="api.php" defer></script>
 
-    <!-- Pied de page -->
     <footer class="footer">
         © 2026 Space. Tous droits réservés. Version 4.0
     </footer>

@@ -1,0 +1,94 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "email": "spacedev@thegoat.com",
+      "display_name": "Space Admin",
+      "password_hash": "$2a$10$SPssSJ.OJcEGLkqwsXaJxuoJBfkvrQ0OW8eVyDCy6M47YsbmTNDJW",
+      "role": "admin",
+      "created_at": 1792080676,
+      "last_seen_at": 1792080676,
+      "is_banned": 0
+    },
+    {
+      "id": 2,
+      "email": "testeur@example.com",
+      "display_name": "TesteurPro",
+      "password_hash": "$2a$10$3vn.L/hMPlExiTTSaNRuQ.c7AoESfEeg89QIOCp737OujO1Dtm7L.",
+      "role": "player",
+      "created_at": 1792080860,
+      "last_seen_at": 1792080860,
+      "is_banned": 0
+    }
+  ],
+  "sessions": [],
+  "botMemory": [],
+  "themes": [
+    {
+      "id": 1,
+      "theme_key": "red",
+      "name": "Rouge et Noir",
+      "primary_color": "#dc2626",
+      "background_color": "#09090b",
+      "custom": 0
+    },
+    {
+      "id": 2,
+      "theme_key": "amber",
+      "name": "Ambre / Or",
+      "primary_color": "#d97706",
+      "background_color": "#0c0e12",
+      "custom": 0
+    },
+    {
+      "id": 3,
+      "theme_key": "purple",
+      "name": "Violet",
+      "primary_color": "#9333ea",
+      "background_color": "#090710",
+      "custom": 0
+    },
+    {
+      "id": 4,
+      "theme_key": "cyan",
+      "name": "Cyan Électrique",
+      "primary_color": "#0891b2",
+      "background_color": "#060e14",
+      "custom": 0
+    },
+    {
+      "id": 5,
+      "theme_key": "emerald",
+      "name": "Émeraude",
+      "primary_color": "#059669",
+      "background_color": "#05100b",
+      "custom": 0
+    }
+  ],
+  "symbols": [
+    {
+      "id": 1,
+      "symbol": "✕",
+      "label": "Croix classique",
+      "custom": 0
+    },
+    {
+      "id": 2,
+      "symbol": "○",
+      "label": "Cercle classique",
+      "custom": 0
+    },
+    {
+      "id": 3,
+      "symbol": "⚡",
+      "label": "Éclair néon",
+      "custom": 0
+    },
+    {
+      "id": 4,
+      "symbol": "✦",
+      "label": "Étoile diamant",
+      "custom": 0
+    }
+  ]
+}

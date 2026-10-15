@@ -1,52 +1,3 @@
-<?php
-require_once __DIR__ . '/includes/app.php';
-
-$user = mg_current_user();
-if (!$user) {
-    header('Location: account.php');
-    exit;
-}
-if ($user['role'] !== 'admin') {
-    http_response_code(403);
-    header('Location: account.php');
-    exit;
-}
-
-$db = mg_db();
-$summary = $db->query(
-    'SELECT
-        (SELECT COUNT(*) FROM users WHERE role = \'player\') AS players,
-        (SELECT COUNT(*) FROM users WHERE role = \'player\' AND last_seen_at >= ' . (time() - 90) . ') AS online,
-        (SELECT COUNT(*) FROM game_sessions) AS games,
-        (SELECT COUNT(*) FROM game_sessions WHERE completed_at IS NOT NULL) AS completed,
-        (SELECT COUNT(*) FROM game_sessions WHERE completed_at IS NULL AND started_at >= ' . (time() - 3600) . ') AS active_games,
-        (SELECT COUNT(*) FROM game_sessions WHERE mode = \'bot\') AS bot_games,
-        (SELECT COUNT(*) FROM bot_memory) AS trained_accounts'
-)->fetch();
-$botLevels = $db->query(
-    'SELECT bot_level, COUNT(*) AS games,
-        SUM(CASE WHEN result = \'O\' THEN 1 ELSE 0 END) AS bot_wins,
-        SUM(CASE WHEN result = \'X\' THEN 1 ELSE 0 END) AS player_wins,
-        SUM(CASE WHEN result = \'TIE\' THEN 1 ELSE 0 END) AS ties
-     FROM game_sessions
-     WHERE mode = \'bot\'
-     GROUP BY bot_level
-     ORDER BY games DESC'
-)->fetchAll();
-$players = $db->query(
-    'SELECT u.id, u.display_name, u.email, u.created_at, u.last_seen_at, u.is_banned,
-        COUNT(g.id) AS games,
-        COALESCE(b.learning_level, 0) AS learning_level,
-        COALESCE(b.games_learned, 0) AS games_learned
-     FROM users u
-     LEFT JOIN game_sessions g ON g.user_id = u.id
-     LEFT JOIN bot_memory b ON b.user_id = u.id
-     WHERE u.role = \'player\'
-     GROUP BY u.id
-     ORDER BY u.last_seen_at DESC, u.created_at DESC
-     LIMIT 100'
-)->fetchAll();
-?>
 <!DOCTYPE html>
 <html lang="fr" data-theme="red">
 <head>
@@ -55,6 +6,7 @@ $players = $db->query(
     <title>Administration - Multi-Games</title>
     <link rel="stylesheet" href="assets/css/themes/themes.css">
     <link rel="stylesheet" href="assets/css/base.css">
+    <style><%- customThemeCss %></style>
     <script src="assets/js/theme.js"></script>
 </head>
 <body>
@@ -63,11 +15,11 @@ $players = $db->query(
             <div class="brand-title">Multi-Games <span>Administration</span></div>
         </a>
         <div class="topbar-actions">
-            <span class="btn-topbar"><?= mg_escape($user['display_name']) ?></span>
+            <span class="btn-topbar"><%= user.display_name %></span>
             <a class="btn-topbar" href="account.php">Mon compte</a>
             <a class="btn-topbar" href="index.php">Retour aux jeux</a>
             <form method="post" action="account.php" class="inline-form">
-                <input type="hidden" name="csrf_token" value="<?= mg_escape(mg_csrf_token()) ?>">
+                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
                 <input type="hidden" name="action" value="logout">
                 <button class="btn-topbar" type="submit">Déconnexion</button>
             </form>
@@ -85,13 +37,13 @@ $players = $db->query(
         </div>
 
         <section class="account-stat-grid admin-summary" aria-label="Statistiques générales">
-            <div class="account-stat"><strong data-stat="players"><?= (int)$summary['players'] ?></strong><span>Comptes joueurs</span></div>
-            <div class="account-stat"><strong data-stat="online"><?= (int)$summary['online'] ?></strong><span>Joueurs connectés</span></div>
-            <div class="account-stat"><strong data-stat="games"><?= (int)$summary['games'] ?></strong><span>Parties lancées</span></div>
-            <div class="account-stat"><strong data-stat="completed"><?= (int)$summary['completed'] ?></strong><span>Parties terminées</span></div>
-            <div class="account-stat"><strong data-stat="active_games"><?= (int)$summary['active_games'] ?></strong><span>En cours (dernière heure)</span></div>
-            <div class="account-stat"><strong data-stat="bot_games"><?= (int)$summary['bot_games'] ?></strong><span>Duels contre le bot</span></div>
-            <div class="account-stat"><strong data-stat="trained_accounts"><?= (int)$summary['trained_accounts'] ?></strong><span>Profils de bot entraînés</span></div>
+            <div class="account-stat"><strong data-stat="players"><%= summary.players %></strong><span>Comptes joueurs</span></div>
+            <div class="account-stat"><strong data-stat="online"><%= summary.online %></strong><span>Joueurs connectés</span></div>
+            <div class="account-stat"><strong data-stat="games"><%= summary.games %></strong><span>Parties lancées</span></div>
+            <div class="account-stat"><strong data-stat="completed"><%= summary.completed %></strong><span>Parties terminées</span></div>
+            <div class="account-stat"><strong data-stat="active_games"><%= summary.active_games %></strong><span>En cours (dernière heure)</span></div>
+            <div class="account-stat"><strong data-stat="bot_games"><%= summary.bot_games %></strong><span>Duels contre le bot</span></div>
+            <div class="account-stat"><strong data-stat="trained_accounts"><%= summary.trained_accounts %></strong><span>Profils de bot entraînés</span></div>
         </section>
 
         <section class="admin-panel">
@@ -105,19 +57,19 @@ $players = $db->query(
                 <table class="admin-table">
                     <thead><tr><th>Difficulté</th><th>Parties</th><th>Victoires du bot</th><th>Victoires joueur</th><th>Nuls</th></tr></thead>
                     <tbody id="bot-level-rows">
-                    <?php if (!$botLevels): ?>
+                    <% if (!botLevels || botLevels.length === 0) { %>
                         <tr><td colspan="5" class="admin-empty">Aucune partie contre le bot pour le moment.</td></tr>
-                    <?php else: ?>
-                        <?php foreach ($botLevels as $row): ?>
+                    <% } else { %>
+                        <% botLevels.forEach(function(row) { %>
                             <tr>
-                                <td><?= mg_escape($row['bot_level'] ?: 'non précisé') ?></td>
-                                <td><?= (int)$row['games'] ?></td>
-                                <td><?= (int)$row['bot_wins'] ?></td>
-                                <td><?= (int)$row['player_wins'] ?></td>
-                                <td><?= (int)$row['ties'] ?></td>
+                                <td><%= row.bot_level || 'non précisé' %></td>
+                                <td><%= row.games %></td>
+                                <td><%= row.bot_wins %></td>
+                                <td><%= row.player_wins %></td>
+                                <td><%= row.ties %></td>
                             </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                        <% }); %>
+                    <% } %>
                     </tbody>
                 </table>
             </div>
@@ -144,22 +96,22 @@ $players = $db->query(
                 <table class="admin-table">
                     <thead><tr><th>Statut</th><th>Pseudo</th><th>E-mail</th><th>Parties</th><th>Niveau appris</th><th>Parties apprises</th><th>Inscription</th><th>Actions</th></tr></thead>
                     <tbody id="player-rows">
-                    <?php if (!$players): ?>
+                    <% if (!players || players.length === 0) { %>
                         <tr><td colspan="8" class="admin-empty">Aucun joueur inscrit.</td></tr>
-                    <?php else: ?>
-                        <?php foreach ($players as $player): ?>
+                    <% } else { %>
+                        <% players.forEach(function(player) { %>
                             <tr>
-                                <td><span class="presence-dot <?= (int)$player['last_seen_at'] >= time() - 90 ? 'is-online' : '' ?>"></span><?= !empty($player['is_banned']) ? 'Banni' : ((int)$player['last_seen_at'] >= time() - 90 ? 'En ligne' : 'Hors ligne') ?></td>
-                                <td><?= mg_escape($player['display_name']) ?></td>
-                                <td><?= mg_escape($player['email']) ?></td>
-                                <td><?= (int)$player['games'] ?></td>
-                                <td><?= (int)$player['learning_level'] ?></td>
-                                <td><?= (int)$player['games_learned'] ?></td>
-                                <td><?= date('d/m/Y', (int)$player['created_at']) ?></td>
+                                <td><span class="presence-dot <%= player.last_seen_at >= now - 90 ? 'is-online' : '' %>"></span><%= player.is_banned ? 'Banni' : (player.last_seen_at >= now - 90 ? 'En ligne' : 'Hors ligne') %></td>
+                                <td><%= player.display_name %></td>
+                                <td><%= player.email %></td>
+                                <td><%= player.games %></td>
+                                <td><%= player.learning_level %></td>
+                                <td><%= player.games_learned %></td>
+                                <td><%= new Date(player.created_at * 1000).toLocaleDateString('fr-FR') %></td>
                                 <td><button class="admin-action-button" type="button">Chargement des actions…</button></td>
                             </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                        <% }); %>
+                    <% } %>
                     </tbody>
                 </table>
             </div>
@@ -210,7 +162,7 @@ $players = $db->query(
     <footer class="footer">© 2026 Space &amp; Multi-Games · Tableau de bord administrateur</footer>
     <script>
         window.MG_ADMIN_API = 'games/morpion/api.php';
-        window.MG_CSRF = <?= json_encode(mg_csrf_token()) ?>;
+        window.MG_CSRF = <%- JSON.stringify(csrfToken) %>;
     </script>
     <script src="assets/js/admin.js" defer></script>
     <script src="assets/js/account-presence.js" data-api="games/morpion/api.php" defer></script>
