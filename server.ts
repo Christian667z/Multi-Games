@@ -120,6 +120,17 @@ function verifyCsrf(req: Request, token?: string): boolean {
 // ----------------------------------------------------
 // 1. HUB / ACCUEIL
 // ----------------------------------------------------
+// Helper for effective theme
+function getEffectiveTheme(req: Request): string {
+  const cookieTheme = req.cookies?.mg_theme;
+  const userTheme = req.user?.theme_preference;
+  const candidate = cookieTheme || userTheme || 'red';
+  return /^[a-z0-9_-]{1,30}$/.test(candidate) ? candidate : 'red';
+}
+
+// ----------------------------------------------------
+// 1. HUB / ACCUEIL
+// ----------------------------------------------------
 const GAMES = [
   {
     id: 'morpion',
@@ -168,6 +179,7 @@ app.get(['/', '/index.php'], (req: Request, res: Response) => {
     user: req.user,
     gameThemes: db.getThemes(),
     customThemeCss: db.getCustomThemeCss(),
+    currentTheme: getEffectiveTheme(req),
     csrfToken: req.session.csrfToken,
     games: GAMES,
   });
@@ -193,6 +205,7 @@ app.get(['/games/morpion', '/games/morpion/', '/games/morpion/index.php'], (req:
   const lanBaseUrl = `/games/morpion/`;
   const csrfToken = req.session.csrfToken || '';
   const customThemeCss = db.getCustomThemeCss();
+  const currentTheme = getEffectiveTheme(req);
 
   const gameThemes = db.getThemes();
   const gameSymbols = db.getSymbols();
@@ -202,6 +215,7 @@ app.get(['/games/morpion', '/games/morpion/', '/games/morpion/index.php'], (req:
     gameThemes,
     gameSymbols,
     customThemeCss,
+    currentTheme,
     csrfToken,
     requestedGridSize,
     playerDisplayName,
@@ -211,28 +225,56 @@ app.get(['/games/morpion', '/games/morpion/', '/games/morpion/index.php'], (req:
 });
 
 // ----------------------------------------------------
-// 3. ACCOUNT PAGE (LOGIN, REGISTER, PROFILE)
+// 3. ACCOUNT PAGE (LOGIN, REGISTER, PROFILE, STATS, HISTORIQUE, AVATAR)
 // ----------------------------------------------------
-function renderAccountPage(req: Request, res: Response, error = '') {
+const AVAILABLE_AVATARS = ['🚀', '⚡', '🤖', '👑', '🐺', '🦊', '🐉', '🎮', '🛸', '🎯', '🦁', '🦅', '💎', '🔮', '🥋', '👾'];
+
+function renderAccountPage(req: Request, res: Response, error = '', success = '') {
   const user = req.user;
   const csrfToken = req.session.csrfToken || '';
   const customThemeCss = db.getCustomThemeCss();
+  const currentTheme = getEffectiveTheme(req);
 
-  let playerStats = { total: 0, completed: 0, bot_games: 0 };
+  let playerStats = {
+    total: 0,
+    completed: 0,
+    wins: 0,
+    losses: 0,
+    ties: 0,
+    win_rate: 0,
+    points: 0,
+    bot_games: 0,
+    wifi_games: 0,
+    local_games: 0,
+    bot_level_breakdown: {} as any,
+  };
+  let gameHistory: any[] = [];
   let botStats = { learning_level: 0, games_learned: 0 };
+  let userRank = 1;
+  const leaderboard = db.getLeaderboard(10);
+
   if (user) {
-    playerStats = db.getUserGameStats(user.id);
+    playerStats = db.getUserDetailedStats(user.id);
+    gameHistory = db.getUserGameHistory(user.id, 40);
     const mem = db.getBotMemory(user.id);
     botStats = { learning_level: mem.learning_level, games_learned: mem.games_learned };
+    userRank = db.getUserRank(user.id);
   }
 
   res.render('account', {
     user,
     csrfToken,
     customThemeCss,
+    currentTheme,
     error,
+    success,
     playerStats,
+    gameHistory,
     botStats,
+    leaderboard,
+    userRank,
+    availableAvatars: AVAILABLE_AVATARS,
+    gameThemes: db.getThemes(),
   });
 }
 
@@ -284,6 +326,7 @@ app.post('/account.php', (req: Request, res: Response) => {
     const name = (req.body.display_name || '').trim();
     const email = (req.body.email || '').trim().toLowerCase();
     const password = req.body.password || '';
+    const chosenAvatar = (req.body.avatar || '🚀').trim();
 
     if (name.length < 2 || name.length > 30) {
       return renderAccountPage(req, res, 'Le pseudo doit contenir entre 2 et 30 caractères.');
@@ -303,17 +346,126 @@ app.post('/account.php', (req: Request, res: Response) => {
     }
 
     const hash = bcrypt.hashSync(password, 10);
-    const user = db.createUser(email, name, hash, 'player');
+    const user = db.createUser(email, name, hash, 'player', chosenAvatar, 'red');
     req.session.userId = user.id;
     req.session.username = user.display_name;
     return res.redirect('account.php');
+  }
+
+  // --- ACTIONS JOUEUR AUTHENTIFIÉ ---
+  if (!req.user) {
+    return renderAccountPage(req, res, 'Veuillez vous connecter pour modifier votre compte.');
+  }
+
+  // 1. Changement de pseudo
+  if (action === 'update_profile' || action === 'update_username') {
+    const newName = (req.body.display_name || '').trim();
+    if (newName.length < 2 || newName.length > 30) {
+      return renderAccountPage(req, res, 'Le pseudo doit contenir entre 2 et 30 caractères.');
+    }
+    db.updateUser(req.user.id, { display_name: newName });
+    req.session.username = newName;
+    req.user.display_name = newName;
+    return renderAccountPage(req, res, '', 'Votre pseudo a été mis à jour avec succès !');
+  }
+
+  // 2. Changement d'email
+  if (action === 'update_email') {
+    const newEmail = (req.body.email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail) || newEmail.length > 190) {
+      return renderAccountPage(req, res, 'Veuillez entrer une adresse e-mail valide.');
+    }
+    if (newEmail === 'spacedev@thegoat.com' && req.user.role !== 'admin') {
+      return renderAccountPage(req, res, 'Cette adresse e-mail est réservée.');
+    }
+    const existing = db.getUserByEmail(newEmail);
+    if (existing && existing.id !== req.user.id) {
+      return renderAccountPage(req, res, 'Cette adresse e-mail est déjà utilisée par un autre compte.');
+    }
+    db.updateUser(req.user.id, { email: newEmail });
+    req.user.email = newEmail;
+    return renderAccountPage(req, res, '', 'Votre adresse e-mail a été mise à jour avec succès !');
+  }
+
+  // 3. Changement de mot de passe
+  if (action === 'update_password') {
+    const currentPass = req.body.current_password || '';
+    const newPass = req.body.new_password || '';
+    const confirmPass = req.body.confirm_password || '';
+
+    if (!bcrypt.compareSync(currentPass, req.user.password_hash)) {
+      return renderAccountPage(req, res, 'Le mot de passe actuel est incorrect.');
+    }
+    if (newPass.length < 10) {
+      return renderAccountPage(req, res, 'Le nouveau mot de passe doit comporter au moins 10 caractères.');
+    }
+    if (newPass !== confirmPass) {
+      return renderAccountPage(req, res, 'La confirmation ne correspond pas au nouveau mot de passe.');
+    }
+
+    const hash = bcrypt.hashSync(newPass, 10);
+    db.updateUser(req.user.id, { password_hash: hash });
+    return renderAccountPage(req, res, '', 'Votre mot de passe a été modifié avec succès !');
+  }
+
+  // 4. Changement d'avatar
+  if (action === 'update_avatar') {
+    const newAvatar = (req.body.avatar || '').trim();
+    if (!newAvatar || newAvatar.length > 8) {
+      return renderAccountPage(req, res, 'Veuillez sélectionner un avatar valide.');
+    }
+    db.updateUser(req.user.id, { avatar: newAvatar });
+    req.user.avatar = newAvatar;
+    return renderAccountPage(req, res, '', 'Avatar mis à jour avec succès !');
+  }
+
+  // 5. Enregistrement du thème préféré
+  if (action === 'update_theme') {
+    const themeKey = (req.body.theme_key || 'red').trim().toLowerCase();
+    db.updateUser(req.user.id, { theme_preference: themeKey });
+    req.user.theme_preference = themeKey;
+    res.cookie('mg_theme', themeKey, { maxAge: 365 * 24 * 3600 * 1000, httpOnly: false });
+    return renderAccountPage(req, res, '', 'Thème préféré enregistré sur votre profil !');
   }
 
   return renderAccountPage(req, res, 'Action inconnue.');
 });
 
 // ----------------------------------------------------
-// 4. ADMIN DASHBOARD
+// 4. CLASSEMENT (LEADERBOARD) PUBLIC ENTRE JOUEURS
+// ----------------------------------------------------
+app.get(['/leaderboard', '/leaderboard.php'], (req: Request, res: Response) => {
+  const user = req.user;
+  const csrfToken = req.session.csrfToken || '';
+  const customThemeCss = db.getCustomThemeCss();
+  const currentTheme = getEffectiveTheme(req);
+  const leaderboard = db.getLeaderboard(50);
+  const userRank = user ? db.getUserRank(user.id) : null;
+  const userStats = user ? db.getUserDetailedStats(user.id) : null;
+
+  res.render('leaderboard', {
+    user,
+    csrfToken,
+    customThemeCss,
+    currentTheme,
+    leaderboard,
+    userRank,
+    userStats,
+  });
+});
+
+app.get('/api/leaderboard', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  const limit = Math.min(100, Math.max(5, parseInt(req.query.limit as string, 10) || 50));
+  return res.json({
+    success: true,
+    leaderboard: db.getLeaderboard(limit),
+  });
+});
+
+// ----------------------------------------------------
+// 5. ADMIN DASHBOARD
 // ----------------------------------------------------
 app.get(['/admin', '/admin.php'], (req: Request, res: Response) => {
   const user = req.user;
@@ -323,6 +475,7 @@ app.get(['/admin', '/admin.php'], (req: Request, res: Response) => {
 
   const csrfToken = req.session.csrfToken || '';
   const customThemeCss = db.getCustomThemeCss();
+  const currentTheme = getEffectiveTheme(req);
   const summary = db.getSummaryStats();
   const botLevels = db.getBotLevelsStats();
   const players = db.getPlayersAdminList();
@@ -332,6 +485,7 @@ app.get(['/admin', '/admin.php'], (req: Request, res: Response) => {
     user,
     csrfToken,
     customThemeCss,
+    currentTheme,
     summary,
     botLevels,
     players,
@@ -348,6 +502,7 @@ app.get(['/space-core', '/space-core/', '/space-core/index.php'], (req: Request,
   }
   res.render('space', {
     csrfToken: req.session.csrfToken || '',
+    currentTheme: getEffectiveTheme(req),
   });
 });
 

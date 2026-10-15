@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="red">
+<html lang="fr" data-theme="<%= currentTheme %>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Games - Plateforme de Jeux PvP 4K</title>
+    <title>Multi-Games</title>
+    <meta name="description" content="Plateforme de jeux multijoueur PvP 4K avec Morpion, modes Local/Bot/Wi-Fi, thèmes dynamiques et assistant Space Core IA.">
+    <meta property="og:title" content="Multi-Games">
+    <meta property="og:description" content="Plateforme de jeux multijoueur PvP 4K avec Morpion, modes Local/Bot/Wi-Fi, thèmes dynamiques et assistant Space Core IA.">
 
     <link rel="stylesheet" href="assets/css/themes/themes.css">
     <link rel="stylesheet" href="assets/css/base.css">
@@ -97,11 +100,18 @@
         </a>
 
         <div class="topbar-actions">
+            <a class="btn-topbar" href="leaderboard.php">
+                <span>🏆</span>
+                <span>Classement</span>
+            </a>
             <a class="btn-topbar" href="space-core/">Parler à Space</a>
             <% if (user) { %>
-                <a class="btn-topbar" href="account.php"><%= user.display_name %></a>
+                <a class="btn-topbar" href="account.php">
+                    <span><%= user.avatar || '🚀' %></span>
+                    <span><%= user.display_name %></span>
+                </a>
                 <% if (user.role === 'admin') { %>
-                    <a class="btn-topbar" href="admin.php">Administration</a>
+                    <a class="btn-topbar admin-btn" href="admin.php">Admin</a>
                 <% } %>
             <% } else { %>
                 <a class="btn-topbar" href="account.php">Connexion / Inscription</a>
@@ -115,15 +125,17 @@
             </button>
 
             <!-- Statistiques Persistantes -->
-            <div class="level-badge" id="stats-pill" title="Vos victoires et défaites">
+            <a href="leaderboard.php" class="level-badge" id="stats-pill" title="Voir le classement et vos statistiques" style="text-decoration: none; cursor: pointer;">
                 <span>🏆</span>
                 <span id="stats-pill-text">0 V | 0 D</span>
-            </div>
+            </a>
 
-            <!-- Paramètres Sélecteur Thème -->
-            <select id="themeSelect" class="btn-topbar" style="background: rgba(255,255,255,0.06); outline: none; border-radius: 9999px;">
+            <!-- Paramètres Sélecteur Thème Lisible -->
+            <select id="themeSelect" class="btn-topbar theme-selector-select" title="Palette de couleurs">
                 <% gameThemes.forEach(function(theme) { %>
-                    <option value="<%= theme.theme_key %>"><%= theme.name %></option>
+                    <option value="<%= theme.theme_key %>" <%= currentTheme === theme.theme_key ? 'selected' : '' %>>
+                        <%= theme.name %>
+                    </option>
                 <% }); %>
             </select>
         </div>

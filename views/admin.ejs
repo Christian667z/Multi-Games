@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="red">
+<html lang="fr" data-theme="<%= currentTheme %>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,9 +15,10 @@
             <div class="brand-title">Multi-Games <span>Administration</span></div>
         </a>
         <div class="topbar-actions">
-            <span class="btn-topbar"><%= user.display_name %></span>
+            <span class="btn-topbar">👑 <%= user.display_name %></span>
+            <a class="btn-topbar" href="leaderboard.php">Classement 🏆</a>
             <a class="btn-topbar" href="account.php">Mon compte</a>
-            <a class="btn-topbar" href="index.php">Retour aux jeux</a>
+            <a class="btn-topbar" href="index.php">Hub Jeux</a>
             <form method="post" action="account.php" class="inline-form">
                 <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
                 <input type="hidden" name="action" value="logout">

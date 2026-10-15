@@ -11,6 +11,8 @@ export interface User {
   created_at: number;
   last_seen_at: number;
   is_banned: number;
+  avatar?: string;
+  theme_preference?: string;
 }
 
 export interface GameSession {
@@ -102,6 +104,10 @@ class Database {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
         const data = JSON.parse(raw);
         this.users = data.users || [];
+        for (const u of this.users) {
+          if (!u.avatar) u.avatar = u.role === 'admin' ? '👑' : '🚀';
+          if (!u.theme_preference) u.theme_preference = 'red';
+        }
         this.sessions = data.sessions || [];
         this.themes = data.themes || [...DEFAULT_THEMES];
         this.symbols = data.symbols || [...DEFAULT_SYMBOLS];
@@ -167,7 +173,12 @@ class Database {
         created_at: Math.floor(Date.now() / 1000),
         last_seen_at: Math.floor(Date.now() / 1000),
         is_banned: 0,
+        avatar: '👑',
+        theme_preference: 'red',
       });
+    } else {
+      if (!existing.avatar) existing.avatar = '👑';
+      if (!existing.theme_preference) existing.theme_preference = 'red';
     }
   }
 
@@ -181,7 +192,7 @@ class Database {
     return this.users.find(u => u.email.toLowerCase() === norm) || null;
   }
 
-  public createUser(email: string, displayName: string, passwordHash: string, role: 'player' | 'admin' = 'player'): User {
+  public createUser(email: string, displayName: string, passwordHash: string, role: 'player' | 'admin' = 'player', avatar = '🚀', themePreference = 'red'): User {
     const user: User = {
       id: this.nextUserId++,
       email: email.trim().toLowerCase(),
@@ -191,6 +202,8 @@ class Database {
       created_at: Math.floor(Date.now() / 1000),
       last_seen_at: Math.floor(Date.now() / 1000),
       is_banned: 0,
+      avatar: avatar || '🚀',
+      theme_preference: themePreference || 'red',
     };
     this.users.push(user);
     this.save();
@@ -242,6 +255,202 @@ class Database {
     const completed = userSessions.filter(s => s.completed_at !== null).length;
     const botGames = userSessions.filter(s => s.mode === 'bot').length;
     return { total, completed, bot_games: botGames };
+  }
+
+  public getUserGameHistory(userId: number, limit = 50) {
+    const userSessions = this.sessions
+      .filter(s => s.user_id === userId)
+      .sort((a, b) => b.started_at - a.started_at)
+      .slice(0, limit);
+
+    return userSessions.map(s => {
+      let outcome: 'win' | 'loss' | 'tie' | 'in_progress' = 'in_progress';
+      let outcomeLabel = 'En cours';
+      let outcomeBadge = 'badge-in-progress';
+
+      if (s.completed_at !== null) {
+        if (s.mode === 'bot') {
+          // Joueur est toujours X contre le bot
+          if (s.result === 'X') {
+            outcome = 'win';
+            outcomeLabel = 'Victoire';
+            outcomeBadge = 'badge-win';
+          } else if (s.result === 'O') {
+            outcome = 'loss';
+            outcomeLabel = 'Défaite';
+            outcomeBadge = 'badge-loss';
+          } else if (s.result === 'TIE') {
+            outcome = 'tie';
+            outcomeLabel = 'Match nul';
+            outcomeBadge = 'badge-tie';
+          }
+        } else if (s.mode === 'local') {
+          if (s.result === 'TIE') {
+            outcome = 'tie';
+            outcomeLabel = 'Match nul';
+            outcomeBadge = 'badge-tie';
+          } else {
+            outcome = 'win';
+            outcomeLabel = `Gagnant : ${s.result}`;
+            outcomeBadge = 'badge-win';
+          }
+        } else if (s.mode === 'wifi') {
+          if (s.result === 'TIE') {
+            outcome = 'tie';
+            outcomeLabel = 'Match nul';
+            outcomeBadge = 'badge-tie';
+          } else if (s.result === 'X' || s.result === 'O') {
+            outcome = 'win';
+            outcomeLabel = `Gagnant : ${s.result}`;
+            outcomeBadge = 'badge-win';
+          }
+        }
+      }
+
+      const botNames: Record<string, string> = {
+        novice: 'Novice 🐣',
+        medium: 'Intermédiaire 🤖',
+        advanced: 'Avancé 🧠',
+        legend: 'Légende 👑',
+        adaptive: 'Évolutif 🧬',
+      };
+
+      const modeNames: Record<string, string> = {
+        bot: `Contre Bot (${botNames[s.bot_level || ''] || s.bot_level || 'Standard'})`,
+        local: '1v1 Local (Même écran)',
+        wifi: 'Duel Wi-Fi LAN',
+      };
+
+      return {
+        id: s.id,
+        mode: s.mode,
+        modeName: modeNames[s.mode] || s.mode,
+        bot_level: s.bot_level,
+        board_size: s.board_size,
+        grid_desc: s.board_size === 3 ? '3×3 Classique' : `${s.board_size}×${s.board_size} Gomoku`,
+        result: s.result,
+        outcome,
+        outcomeLabel,
+        outcomeBadge,
+        started_at: s.started_at,
+        completed_at: s.completed_at,
+        formatted_date: new Date(s.started_at * 1000).toLocaleString('fr-FR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        duration: s.completed_at ? Math.max(1, s.completed_at - s.started_at) : null,
+      };
+    });
+  }
+
+  public getUserDetailedStats(userId: number) {
+    const userSessions = this.sessions.filter(s => s.user_id === userId);
+    const total = userSessions.length;
+    const completed = userSessions.filter(s => s.completed_at !== null).length;
+
+    let wins = 0;
+    let losses = 0;
+    let ties = 0;
+    let botGames = 0;
+    let wifiGames = 0;
+    let localGames = 0;
+
+    const botLevelBreakdown: Record<string, { total: number; wins: number; losses: number; ties: number }> = {
+      novice: { total: 0, wins: 0, losses: 0, ties: 0 },
+      medium: { total: 0, wins: 0, losses: 0, ties: 0 },
+      advanced: { total: 0, wins: 0, losses: 0, ties: 0 },
+      legend: { total: 0, wins: 0, losses: 0, ties: 0 },
+      adaptive: { total: 0, wins: 0, losses: 0, ties: 0 },
+    };
+
+    for (const s of userSessions) {
+      if (s.mode === 'bot') {
+        botGames++;
+        const lvl = s.bot_level || 'medium';
+        if (!botLevelBreakdown[lvl]) {
+          botLevelBreakdown[lvl] = { total: 0, wins: 0, losses: 0, ties: 0 };
+        }
+        botLevelBreakdown[lvl].total++;
+        if (s.result === 'X') {
+          wins++;
+          botLevelBreakdown[lvl].wins++;
+        } else if (s.result === 'O') {
+          losses++;
+          botLevelBreakdown[lvl].losses++;
+        } else if (s.result === 'TIE') {
+          ties++;
+          botLevelBreakdown[lvl].ties++;
+        }
+      } else if (s.mode === 'wifi') {
+        wifiGames++;
+        if (s.result === 'X' || s.result === 'O') wins++;
+        else if (s.result === 'TIE') ties++;
+      } else if (s.mode === 'local') {
+        localGames++;
+        if (s.result === 'X' || s.result === 'O') wins++;
+        else if (s.result === 'TIE') ties++;
+      }
+    }
+
+    const decisive = wins + losses;
+    const winRate = decisive > 0 ? Math.round((wins / decisive) * 100) : 0;
+    const points = wins * 3 + ties * 1;
+
+    return {
+      total,
+      completed,
+      wins,
+      losses,
+      ties,
+      win_rate: winRate,
+      points,
+      bot_games: botGames,
+      wifi_games: wifiGames,
+      local_games: localGames,
+      bot_level_breakdown: botLevelBreakdown,
+    };
+  }
+
+  public getLeaderboard(limit = 50) {
+    const allUsers = this.users.filter(u => !u.is_banned);
+    const entries = allUsers.map(user => {
+      const stats = this.getUserDetailedStats(user.id);
+      return {
+        id: user.id,
+        display_name: user.display_name,
+        avatar: user.avatar || '🚀',
+        role: user.role,
+        total_games: stats.total,
+        completed_games: stats.completed,
+        wins: stats.wins,
+        losses: stats.losses,
+        ties: stats.ties,
+        win_rate: stats.win_rate,
+        points: stats.points,
+        last_seen_at: user.last_seen_at,
+      };
+    });
+
+    entries.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (b.win_rate !== a.win_rate) return b.win_rate - a.win_rate;
+      return b.completed_games - a.completed_games;
+    });
+
+    return entries.slice(0, limit).map((entry, index) => ({
+      rank: index + 1,
+      ...entry,
+    }));
+  }
+
+  public getUserRank(userId: number): number {
+    const leaderboard = this.getLeaderboard(1000);
+    const found = leaderboard.find(e => e.id === userId);
+    return found ? found.rank : leaderboard.length + 1;
   }
 
   // Bot Memory

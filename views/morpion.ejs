@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="red">
+<html lang="fr" data-theme="<%= currentTheme %>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -34,11 +34,18 @@
         </a>
 
         <div class="topbar-actions">
-            <a class="btn-topbar" href="../../space-core/">Parler à Space</a>
+            <a class="btn-topbar" href="../../leaderboard.php">
+                <span>🏆</span>
+                <span>Classement</span>
+            </a>
+            <a class="btn-topbar" href="../../space-core/">Space Core</a>
             <% if (user) { %>
-                <a class="btn-topbar" href="../../account.php"><%= user.display_name %></a>
+                <a class="btn-topbar" href="../../account.php">
+                    <span><%= user.avatar || '🚀' %></span>
+                    <span><%= user.display_name %></span>
+                </a>
                 <% if (user.role === 'admin') { %>
-                    <a class="btn-topbar" href="../../admin.php">Administration</a>
+                    <a class="btn-topbar admin-btn" href="../../admin.php">Admin</a>
                 <% } %>
             <% } else { %>
                 <a class="btn-topbar" href="../../account.php">Connexion</a>
@@ -592,9 +599,14 @@
                 </div>
             </div>
 
-            <button class="btn-secondary-action" onclick="localStorage.removeItem('mg_stat_wins'); localStorage.removeItem('mg_stat_losses'); localStorage.removeItem('mg_stat_ties'); localStorage.removeItem('mg_stat_total'); location.reload();">
-                Réinitialiser les statistiques
-            </button>
+            <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                <a href="../../leaderboard.php" class="btn-primary-action" style="text-decoration: none;">
+                    Consulter le Classement Mondial 🏆
+                </a>
+                <button class="btn-secondary-action" onclick="localStorage.removeItem('mg_stat_wins'); localStorage.removeItem('mg_stat_losses'); localStorage.removeItem('mg_stat_ties'); localStorage.removeItem('mg_stat_total'); location.reload();">
+                    Réinitialiser mes compteurs locaux
+                </button>
+            </div>
         </div>
     </div>
 

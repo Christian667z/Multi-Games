@@ -304,12 +304,16 @@ const MorpionBot = (function() {
             const candidates = getRelevantEmpties(board, size, 2);
             if (candidates.length === 0) return Math.floor(size * size / 2);
 
+            // 1. Priorité absolue : Victoire immédiate du bot sur n'importe quelle case candidate
             for (const idx of candidates) {
                 board[idx] = botSym;
                 const winsNow = checkWinner(board, size, winLen) === botSym;
                 board[idx] = null;
                 if (winsNow) return idx;
+            }
 
+            // 2. Bloquer immédiatement toute victoire adverse
+            for (const idx of candidates) {
                 board[idx] = playerSym;
                 const blocksWin = checkWinner(board, size, winLen) === playerSym;
                 board[idx] = null;
@@ -433,26 +437,50 @@ const MorpionBot = (function() {
         resetAdaptive: function() {
             adaptiveStreak = 0;
         },
-        computeMove: function(level, board, botSym = 'O', playerSym = 'X', size = 3, winLen = 3) {
-            if (size === 3 && level !== 'novice') {
-                return getLegendMove(board, botSym, playerSym, size, winLen);
+        normalizeLevel: function(level) {
+            if (!level || typeof level !== 'string') {
+                throw new Error(`Niveau de bot invalide : ${JSON.stringify(level)}`);
             }
-            switch (level) {
+            const cleaned = level
+                .trim()
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+
+            if (cleaned === 'novice' || cleaned === 'facile' || cleaned === 'easy') {
+                return 'novice';
+            }
+            if (cleaned === 'medium' || cleaned === 'intermediate' || cleaned === 'intermediaire' || cleaned === 'moyen') {
+                return 'medium';
+            }
+            if (cleaned === 'advanced' || cleaned === 'avance' || cleaned === 'difficile' || cleaned === 'hard') {
+                return 'advanced';
+            }
+            if (cleaned === 'legend' || cleaned === 'legende' || cleaned === 'expert' || cleaned === 'impossible') {
+                return 'legend';
+            }
+            if (cleaned === 'adaptive' || cleaned === 'evolutif' || cleaned === 'adaptatif' || cleaned === 'learning') {
+                return 'adaptive';
+            }
+
+            throw new Error(`Niveau de bot inconnu : "${level}". Niveaux autorisés : novice, intermediate (ou intermédiaire), advanced (ou avancé), legend (ou légende), adaptive (ou évolutif).`);
+        },
+        computeMove: function(level, board, botSym = 'O', playerSym = 'X', size = 3, winLen = 3) {
+            const canonicalLevel = this.normalizeLevel(level);
+
+            switch (canonicalLevel) {
                 case 'novice':
                     return getNoviceMove(board, size);
                 case 'medium':
-                case 'intermediaire':
                     return getIntermediateMove(board, botSym, playerSym, size, winLen);
                 case 'advanced':
-                case 'avance':
                     return getAdvancedMove(board, botSym, playerSym, size, winLen);
                 case 'legend':
-                case 'legende':
                     return getLegendMove(board, botSym, playerSym, size, winLen);
                 case 'adaptive':
-                case 'evolutif':
-                default:
                     return getAdaptiveMove(board, botSym, playerSym, size, winLen);
+                default:
+                    throw new Error(`Niveau de bot non reconnu : "${canonicalLevel}"`);
             }
         }
     };

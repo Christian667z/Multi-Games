@@ -1,90 +1,476 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="red">
+<html lang="fr" data-theme="<%= currentTheme %>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compte joueur - Multi-Games</title>
+    <title>Compte Joueur - Multi-Games</title>
+    <meta name="description" content="Espace personnel joueur Multi-Games : statistiques complètes, historique des parties, avatar, et sécurité.">
+
     <link rel="stylesheet" href="assets/css/themes/themes.css">
     <link rel="stylesheet" href="assets/css/base.css">
     <style><%- customThemeCss %></style>
+
     <script src="assets/js/theme.js"></script>
+    <script src="assets/js/audio.js" defer></script>
 </head>
 <body>
     <header class="topbar">
         <a href="index.php" class="brand-wrapper">
-            <div class="brand-title">Multi-Games <span>Compte joueur</span></div>
+            <div class="brand-icon"><span class="x-sym">🎮</span></div>
+            <div class="brand-title">Multi-Games <span>Compte Joueur</span></div>
         </a>
         <div class="topbar-actions">
-            <a class="btn-topbar" href="index.php">Retour aux jeux</a>
+            <a class="btn-topbar" href="index.php">Hub Jeux</a>
+            <a class="btn-topbar" href="games/morpion/index.php">Morpion</a>
+            <a class="btn-topbar" href="leaderboard.php">Classement 🏆</a>
+            <a class="btn-topbar" href="space-core/">Space Core</a>
+
             <% if (user && user.role === 'admin') { %>
-                <a class="btn-topbar" href="admin.php">Administration</a>
+                <a class="btn-topbar admin-btn" href="admin.php">Administration</a>
             <% } %>
+
             <% if (user) { %>
-                <form method="post" class="inline-form">
+                <form method="post" action="account.php" class="inline-form" style="margin: 0;">
                     <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
                     <input type="hidden" name="action" value="logout">
                     <button class="btn-topbar" type="submit">Déconnexion</button>
                 </form>
             <% } %>
+
+            <button class="btn-topbar palette-btn" id="theme-palette-btn" title="Changer de thème">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 0 0 7 7c0 2-2 3-2 3"/>
+                </svg>
+            </button>
         </div>
     </header>
 
-    <main class="main-container account-page">
+    <main class="main-container account-page" style="padding-top: 1.5rem;">
         <% if (error) { %>
-            <div class="account-alert" role="alert"><%= error %></div>
+            <div class="account-alert" role="alert">⚠️ <%= error %></div>
         <% } %>
+        <% if (success) { %>
+            <div class="account-success" role="status">✅ <%= success %></div>
+        <% } %>
+
         <% if (user) { %>
-            <section class="account-card">
-                <div class="hub-tag">Compte <%= user.role === 'admin' ? 'administrateur' : 'joueur' %></div>
-                <h1 class="card-title">Bienvenue, <%= user.display_name %></h1>
-                <p class="card-desc"><%= user.email %></p>
-                <% if (user.role === 'admin') { %>
-                    <a class="btn-primary-action account-action" href="admin.php">Ouvrir le tableau de bord</a>
-                <% } else { %>
-                    <div class="account-stat-grid">
-                        <div class="account-stat"><strong><%= playerStats.total %></strong><span>Parties lancées</span></div>
-                        <div class="account-stat"><strong><%= playerStats.completed %></strong><span>Parties terminées</span></div>
-                        <div class="account-stat"><strong><%= playerStats.bot_games %></strong><span>Duels contre un bot</span></div>
-                        <div class="account-stat"><strong><%= botStats.games_learned %></strong><span>Parties apprises par le bot évolutif</span></div>
+            <div class="account-card" style="max-width: 1050px;">
+                <!-- En-tête profil -->
+                <div class="account-hero-header">
+                    <div class="account-avatar-large" id="current-user-avatar"><%= user.avatar || '🚀' %></div>
+                    <div class="account-hero-info">
+                        <div class="account-hero-name">
+                            <span><%= user.display_name %></span>
+                            <% if (user.role === 'admin') { %>
+                                <span style="font-size: 0.72rem; background: var(--badge-bg); color: var(--badge-text); border: 1px solid var(--badge-border); padding: 0.2rem 0.6rem; border-radius: 9999px;">ADMINISTRATEUR</span>
+                            <% } else { %>
+                                <span style="font-size: 0.72rem; background: rgba(255,255,255,0.08); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.12); padding: 0.2rem 0.6rem; border-radius: 9999px;">JOUEUR</span>
+                            <% } %>
+                            <span style="font-size: 0.78rem; background: rgba(250, 204, 21, 0.15); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.35); padding: 0.2rem 0.6rem; border-radius: 9999px;">Rang #<%= userRank %></span>
+                        </div>
+                        <div class="account-hero-email"><%= user.email %></div>
+                        <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.3rem;">
+                            Membre depuis le <%= new Date(user.created_at * 1000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) %>
+                        </div>
                     </div>
-                    <p class="account-note">Le bot mémorise vos parties et évite progressivement les coups qui l’ont fait perdre. Cette mémoire est propre à votre compte.</p>
-                    <a class="btn-primary-action account-action" href="games/morpion/index.php">Jouer une partie</a>
-                <% } %>
-            </section>
+                    <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+                        <a href="games/morpion/index.php" class="btn-primary-action" style="width: auto; padding: 0.6rem 1.2rem; font-size: 0.85rem;">
+                            Jouer une partie ⚡
+                        </a>
+                        <a href="leaderboard.php" class="btn-secondary-action" style="width: auto; padding: 0.6rem 1.2rem; font-size: 0.85rem;">
+                            Voir classement 🏆
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Onglets -->
+                <div class="account-tabs" role="tablist">
+                    <button class="account-tab-btn active" data-tab="tab-stats" role="tab" aria-selected="true">
+                        <span>📊</span> Statistiques
+                    </button>
+                    <button class="account-tab-btn" data-tab="tab-history" role="tab" aria-selected="false">
+                        <span>📜</span> Historique des parties (<%= gameHistory.length %>)
+                    </button>
+                    <button class="account-tab-btn" data-tab="tab-settings" role="tab" aria-selected="false">
+                        <span>⚙️</span> Profil &amp; Sécurité
+                    </button>
+                    <button class="account-tab-btn" data-tab="tab-leaderboard" role="tab" aria-selected="false">
+                        <span>🏆</span> Classement Top 10
+                    </button>
+                </div>
+
+                <!-- CONTENU ONGLET 1 : STATISTIQUES DÉTAILLÉES -->
+                <div class="account-tab-content active" id="tab-stats">
+                    <div class="hub-tag" style="margin-bottom: 0.8rem;">Performances Générales</div>
+                    <div class="account-stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));">
+                        <div class="account-stat">
+                            <strong style="color: #34d399;"><%= playerStats.wins %></strong>
+                            <span>Victoires</span>
+                        </div>
+                        <div class="account-stat">
+                            <strong style="color: #f87171;"><%= playerStats.losses %></strong>
+                            <span>Défaites</span>
+                        </div>
+                        <div class="account-stat">
+                            <strong style="color: #fbbf24;"><%= playerStats.ties %></strong>
+                            <span>Matchs nuls</span>
+                        </div>
+                        <div class="account-stat">
+                            <strong style="color: <%= playerStats.win_rate >= 60 ? '#34d399' : playerStats.win_rate >= 40 ? '#fbbf24' : '#a1a1aa' %>;">
+                                <%= playerStats.win_rate %>%
+                            </strong>
+                            <span>Taux de victoire</span>
+                        </div>
+                        <div class="account-stat">
+                            <strong style="color: var(--primary);"><%= playerStats.points %></strong>
+                            <span>Points au classement</span>
+                        </div>
+                        <div class="account-stat">
+                            <strong><%= playerStats.total %></strong>
+                            <span>Parties lancées</span>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.2rem; margin-top: 1.5rem;">
+                        <!-- Répartition des modes -->
+                        <div style="background: var(--card-inner); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.25rem;">
+                            <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.8rem;">Modes de jeu</h3>
+                            <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.9rem;">
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.4rem;">
+                                    <span style="color: var(--text-muted);">🤖 Contre le Bot</span>
+                                    <strong><%= playerStats.bot_games %></strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.4rem;">
+                                    <span style="color: var(--text-muted);">📶 Duels Wi-Fi LAN</span>
+                                    <strong><%= playerStats.wifi_games %></strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span style="color: var(--text-muted);">👥 1v1 Local</span>
+                                    <strong><%= playerStats.local_games %></strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mémoire du Bot Évolutif -->
+                        <div style="background: var(--card-inner); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.25rem;">
+                            <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.8rem;">Intelligence Adaptative</h3>
+                            <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.9rem;">
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.4rem;">
+                                    <span style="color: var(--text-muted);">Niveau d'adaptation</span>
+                                    <strong style="color: var(--primary);">
+                                        <%= botStats.learning_level > 0 ? '+' + botStats.learning_level : botStats.learning_level %>
+                                    </strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.4rem;">
+                                    <span style="color: var(--text-muted);">Parties apprises</span>
+                                    <strong><%= botStats.games_learned %></strong>
+                                </div>
+                                <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.3rem;">
+                                    L'IA apprend spécifiquement contre vos habitudes de jeu et évite ses erreurs passées.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTENU ONGLET 2 : HISTORIQUE DES PARTIES -->
+                <div class="account-tab-content" id="tab-history">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <div class="hub-tag" style="margin: 0;">Journal des dernières confrontations</div>
+                        <span style="font-size: 0.82rem; color: var(--text-muted);"><%= gameHistory.length %> parties enregistrées</span>
+                    </div>
+
+                    <% if (gameHistory.length === 0) { %>
+                        <div style="text-align: center; padding: 3rem 1rem; background: var(--card-inner); border-radius: 1rem; border: 1px solid var(--card-border);">
+                            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🎲</div>
+                            <h3 style="color: #fff; font-weight: 700; margin-bottom: 0.4rem;">Aucune partie enregistrée</h3>
+                            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">Lancez une partie en local, contre l'IA ou en Wi-Fi pour commencer votre historique.</p>
+                            <a href="games/morpion/index.php" class="btn-primary-action" style="width: auto; margin: 0 auto; padding: 0.6rem 1.5rem;">Jouer maintenant</a>
+                        </div>
+                    <% } else { %>
+                        <div class="history-table-wrapper">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date &amp; Heure</th>
+                                        <th>Mode de Jeu</th>
+                                        <th>Format Grille</th>
+                                        <th style="text-align: center;">Résultat</th>
+                                        <th style="text-align: right;">Durée</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% gameHistory.forEach(function(game) { %>
+                                        <tr>
+                                            <td style="color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; white-space: nowrap;">
+                                                <%= game.formatted_date %>
+                                            </td>
+                                            <td>
+                                                <strong><%= game.modeName %></strong>
+                                            </td>
+                                            <td style="color: var(--text-muted);">
+                                                <%= game.grid_desc %>
+                                            </td>
+                                            <td style="text-align: center;">
+                                                <span class="badge-outcome <%= game.outcomeBadge %>">
+                                                    <%= game.outcomeLabel %>
+                                                </span>
+                                            </td>
+                                            <td style="text-align: right; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 0.82rem;">
+                                                <%= game.duration ? game.duration + 's' : '—' %>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    <% } %>
+                </div>
+
+                <!-- CONTENU ONGLET 3 : PARAMÈTRES DU COMPTE -->
+                <div class="account-tab-content" id="tab-settings">
+                    <div class="hub-tag" style="margin-bottom: 1.2rem;">Personnalisation &amp; Sécurité</div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1.4rem;">
+                        <!-- 1. Changer d'Avatar -->
+                        <div class="account-form">
+                            <h3 class="card-title" style="font-size: 1.15rem;">Changer d'Avatar</h3>
+                            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Choisissez l'icône qui vous représentera dans les parties et au classement.</p>
+                            <form method="post" action="account.php">
+                                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                                <input type="hidden" name="action" value="update_avatar">
+                                <input type="hidden" name="avatar" id="selected-avatar-input" value="<%= user.avatar || '🚀' %>">
+
+                                <div class="avatar-picker-grid">
+                                    <% availableAvatars.forEach(function(av) { %>
+                                        <button type="button" class="avatar-choice-btn <%= (user.avatar || '🚀') === av ? 'selected' : '' %>" data-avatar="<%= av %>" onclick="selectAvatar('<%= av %>')">
+                                            <%= av %>
+                                        </button>
+                                    <% }); %>
+                                </div>
+                                <button class="btn-primary-action" type="submit" style="margin-top: 0.5rem;">Enregistrer l'avatar</button>
+                            </form>
+                        </div>
+
+                        <!-- 2. Changer de Pseudo -->
+                        <div class="account-form">
+                            <h3 class="card-title" style="font-size: 1.15rem;">Modifier le Pseudo</h3>
+                            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Visible par les autres joueurs en ligne et sur le podium.</p>
+                            <form method="post" action="account.php">
+                                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                                <input type="hidden" name="action" value="update_profile">
+                                <label for="update-name">Nouveau pseudo (2 à 30 caractères)</label>
+                                <input id="update-name" name="display_name" type="text" value="<%= user.display_name %>" required minlength="2" maxlength="30" autocomplete="nickname">
+                                <button class="btn-primary-action" type="submit">Sauvegarder le pseudo</button>
+                            </form>
+                        </div>
+
+                        <!-- 3. Changer d'Email -->
+                        <div class="account-form">
+                            <h3 class="card-title" style="font-size: 1.15rem;">Modifier l'Adresse E-mail</h3>
+                            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Utilisée pour vous connecter à votre compte Multi-Games.</p>
+                            <form method="post" action="account.php">
+                                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                                <input type="hidden" name="action" value="update_email">
+                                <label for="update-email">Nouvelle adresse e-mail</label>
+                                <input id="update-email" name="email" type="email" value="<%= user.email %>" required maxlength="190" autocomplete="email">
+                                <button class="btn-primary-action" type="submit">Sauvegarder l'e-mail</button>
+                            </form>
+                        </div>
+
+                        <!-- 4. Changer de Mot de Passe -->
+                        <div class="account-form">
+                            <h3 class="card-title" style="font-size: 1.15rem;">Changer de Mot de Passe</h3>
+                            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Sécurisez votre compte avec un mot de passe robuste.</p>
+                            <form method="post" action="account.php">
+                                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                                <input type="hidden" name="action" value="update_password">
+
+                                <label for="current-password">Mot de passe actuel</label>
+                                <input id="current-password" name="current_password" type="password" required autocomplete="current-password">
+
+                                <label for="new-password">Nouveau mot de passe (min. 10 caractères)</label>
+                                <input id="new-password" name="new_password" type="password" required minlength="10" autocomplete="new-password">
+
+                                <label for="confirm-password">Confirmer le nouveau mot de passe</label>
+                                <input id="confirm-password" name="confirm_password" type="password" required minlength="10" autocomplete="new-password">
+
+                                <button class="btn-primary-action" type="submit">Modifier le mot de passe</button>
+                            </form>
+                        </div>
+
+                        <!-- 5. Thème préféré -->
+                        <div class="account-form">
+                            <h3 class="card-title" style="font-size: 1.15rem;">Thème Visuel du Compte</h3>
+                            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Définissez votre palette de couleurs favorite par défaut.</p>
+                            <form method="post" action="account.php">
+                                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                                <input type="hidden" name="action" value="update_theme">
+                                <label for="account-theme-select">Palette de couleurs :</label>
+                                <select id="account-theme-select" name="theme_key" class="theme-selector-select" style="width: 100%; padding: 0.8rem; border-radius: 0.65rem;" onchange="window.setSpecificTheme(this.value)">
+                                    <% gameThemes.forEach(function(theme) { %>
+                                        <option value="<%= theme.theme_key %>" <%= (user.theme_preference || currentTheme) === theme.theme_key ? 'selected' : '' %>>
+                                            <%= theme.name %>
+                                        </option>
+                                    <% }); %>
+                                </select>
+                                <button class="btn-primary-action" type="submit" style="margin-top: 0.8rem;">Enregistrer comme favori</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTENU ONGLET 4 : CLASSEMENT TOP 10 -->
+                <div class="account-tab-content" id="tab-leaderboard">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.8rem;">
+                        <div class="hub-tag" style="margin: 0;">Top 10 Joueurs de la Plateforme</div>
+                        <a href="leaderboard.php" class="btn-secondary-action" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">
+                            Voir tout le classement ➔
+                        </a>
+                    </div>
+
+                    <div class="leaderboard-table-wrapper">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 60px; text-align: center;">Rang</th>
+                                    <th>Joueur</th>
+                                    <th style="text-align: center;">Points</th>
+                                    <th style="text-align: center;">Victoires</th>
+                                    <th style="text-align: center;">Défaites</th>
+                                    <th style="text-align: center;">Ratio</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% leaderboard.forEach(function(entry) { %>
+                                    <tr class="<%= user.id === entry.id ? 'leaderboard-row-me' : '' %>">
+                                        <td class="leaderboard-rank-col">
+                                            <% if (entry.rank === 1) { %>🥇
+                                            <% } else if (entry.rank === 2) { %>🥈
+                                            <% } else if (entry.rank === 3) { %>🥉
+                                            <% } else { %>#<%= entry.rank %><% } %>
+                                        </td>
+                                        <td>
+                                            <div style="display: flex; align-items: center;">
+                                                <span class="user-inline-avatar"><%= entry.avatar %></span>
+                                                <strong><%= entry.display_name %></strong>
+                                                <% if (user.id === entry.id) { %>
+                                                    <span style="font-size: 0.68rem; background: rgba(52, 211, 153, 0.2); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.35); padding: 0.15rem 0.45rem; border-radius: 9999px; margin-left: 0.5rem;">VOUS</span>
+                                                <% } %>
+                                            </div>
+                                        </td>
+                                        <td style="text-align: center; font-family: 'JetBrains Mono', monospace; font-weight: 800; color: var(--primary);">
+                                            <%= entry.points %>
+                                        </td>
+                                        <td style="text-align: center; font-weight: 700; color: #34d399;">
+                                            <%= entry.wins %>
+                                        </td>
+                                        <td style="text-align: center; color: #f87171;">
+                                            <%= entry.losses %>
+                                        </td>
+                                        <td style="text-align: center; font-weight: 700;">
+                                            <%= entry.win_rate %>%
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         <% } else { %>
+            <!-- Utilisateur non connecté : Formulaires Connexion et Inscription -->
             <section class="account-card">
-                <div class="hub-tag">Espace joueur</div>
-                <h1 class="hub-title">Connexion <span>/ Inscription</span></h1>
-                <p class="hub-subtitle account-intro">Connectez-vous pour suivre vos parties et conserver l’apprentissage du bot sur votre compte.</p>
+                <div class="hub-tag">Espace Joueur</div>
+                <h1 class="hub-title">CONNEXION <span>/ INSCRIPTION</span></h1>
+                <p class="hub-subtitle account-intro">
+                    Connectez-vous pour enregistrer votre historique de parties, personnaliser votre avatar, grimper dans le classement et entraîner l’IA.
+                </p>
                 <div class="account-forms">
-                    <form method="post" class="account-form">
+                    <!-- Formulaire de Connexion -->
+                    <form method="post" action="account.php" class="account-form">
                         <h2 class="card-title">Se connecter</h2>
                         <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
                         <input type="hidden" name="action" value="login">
+
                         <label for="login-email">Adresse e-mail</label>
-                        <input id="login-email" name="email" type="email" autocomplete="username" required maxlength="190">
+                        <input id="login-email" name="email" type="email" autocomplete="username" required maxlength="190" placeholder="votre@email.com">
+
                         <label for="login-password">Mot de passe</label>
-                        <input id="login-password" name="password" type="password" autocomplete="current-password" required>
-                        <button class="btn-primary-action" type="submit">Connexion</button>
+                        <input id="login-password" name="password" type="password" autocomplete="current-password" required placeholder="••••••••••">
+
+                        <button class="btn-primary-action" type="submit">Connexion ➔</button>
                     </form>
-                    <form method="post" class="account-form">
+
+                    <!-- Formulaire d'Inscription -->
+                    <form method="post" action="account.php" class="account-form">
                         <h2 class="card-title">Créer un compte</h2>
                         <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
                         <input type="hidden" name="action" value="register">
-                        <label for="register-name">Pseudo</label>
-                        <input id="register-name" name="display_name" type="text" autocomplete="nickname" required minlength="2" maxlength="30">
+
+                        <label for="register-name">Pseudo joueur</label>
+                        <input id="register-name" name="display_name" type="text" autocomplete="nickname" required minlength="2" maxlength="30" placeholder="Ex: CyberSamurai">
+
                         <label for="register-email">Adresse e-mail</label>
-                        <input id="register-email" name="email" type="email" autocomplete="email" required maxlength="190">
-                        <label for="register-password">Mot de passe (10 caractères minimum)</label>
-                        <input id="register-password" name="password" type="password" autocomplete="new-password" required minlength="10">
-                        <button class="btn-primary-action" type="submit">Créer mon compte</button>
+                        <input id="register-email" name="email" type="email" autocomplete="email" required maxlength="190" placeholder="votre@email.com">
+
+                        <label for="register-password">Mot de passe (10 caractères min.)</label>
+                        <input id="register-password" name="password" type="password" autocomplete="new-password" required minlength="10" placeholder="••••••••••">
+
+                        <label>Avatar de départ :</label>
+                        <input type="hidden" name="avatar" id="reg-avatar-val" value="🚀">
+                        <div class="avatar-picker-grid" style="grid-template-columns: repeat(8, 1fr); margin-bottom: 0.5rem;">
+                            <% availableAvatars.slice(0, 8).forEach(function(av, idx) { %>
+                                <button type="button" class="avatar-choice-btn <%= idx === 0 ? 'selected' : '' %>" onclick="document.getElementById('reg-avatar-val').value='<%= av %>'; document.querySelectorAll('.reg-av-btn').forEach(b => b.classList.remove('selected')); this.classList.add('selected');" class="reg-av-btn">
+                                    <%= av %>
+                                </button>
+                            <% }); %>
+                        </div>
+
+                        <button class="btn-primary-action" type="submit">Créer mon compte ✨</button>
                     </form>
                 </div>
-                <p class="account-note">Le compte administrateur est réservé à son propriétaire et ne peut pas être créé depuis le formulaire.</p>
             </section>
         <% } %>
     </main>
+
     <footer class="footer">© 2026 Space &amp; Multi-Games</footer>
+
+    <script>
+        // Gestion des onglets de la page compte
+        document.querySelectorAll('.account-tab-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.account-tab-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.setAttribute('aria-selected', 'false');
+                });
+                document.querySelectorAll('.account-tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+
+                button.classList.add('active');
+                button.setAttribute('aria-selected', 'true');
+                const targetId = button.getAttribute('data-tab');
+                const target = document.getElementById(targetId);
+                if (target) target.classList.add('active');
+            });
+        });
+
+        // Sélection d'avatar
+        function selectAvatar(avatar) {
+            const input = document.getElementById('selected-avatar-input');
+            if (input) input.value = avatar;
+            document.querySelectorAll('.avatar-choice-btn').forEach(btn => {
+                if (btn.getAttribute('data-avatar') === avatar) {
+                    btn.classList.add('selected');
+                } else {
+                    btn.classList.remove('selected');
+                }
+            });
+            const avatarDisplay = document.getElementById('current-user-avatar');
+            if (avatarDisplay) avatarDisplay.textContent = avatar;
+        }
+    </script>
     <% if (user) { %>
         <script>window.MG_CSRF = <%- JSON.stringify(csrfToken) %>;</script>
         <script src="assets/js/account-presence.js" data-api="games/morpion/api.php" defer></script>
