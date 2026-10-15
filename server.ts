@@ -177,8 +177,9 @@ app.get(['/', '/index.php'], (req: Request, res: Response) => {
 // 2. MORPION GAME VIEW
 // ----------------------------------------------------
 app.get(['/games/morpion', '/games/morpion/', '/games/morpion/index.php'], (req: Request, res: Response) => {
-  const filePath = path.resolve('games/morpion/index.php');
-  let html = fs.readFileSync(filePath, 'utf-8');
+  if (req.path === '/games/morpion') {
+    return res.redirect(301, '/games/morpion/');
+  }
 
   const user = req.user;
   const playerDisplayName = user ? user.display_name : 'Joueur 1';
@@ -188,81 +189,34 @@ app.get(['/games/morpion', '/games/morpion/', '/games/morpion/index.php'], (req:
     requestedGridSize = gq;
   }
 
-  const hostIp = '127.0.0.1';
+  const hostIp = (req.headers.host || '127.0.0.1').split(':')[0];
   const lanBaseUrl = `/games/morpion/`;
-  const csrfToken = req.session.csrfToken;
+  const csrfToken = req.session.csrfToken || '';
   const customThemeCss = db.getCustomThemeCss();
 
-  const themes = db.getThemes();
-  const symbols = db.getSymbols();
+  const gameThemes = db.getThemes();
+  const gameSymbols = db.getSymbols();
 
-  // Replace PHP header and script injections
-  html = html.replace(/<\?php[\s\S]*?\?>/g, (match, offset) => {
-    // Only strip the initial PHP bootstrap block
-    if (offset < 100) return '';
-    return match;
+  res.render('morpion', {
+    user,
+    gameThemes,
+    gameSymbols,
+    customThemeCss,
+    csrfToken,
+    requestedGridSize,
+    playerDisplayName,
+    lanBaseUrl,
+    serverIp: hostIp,
   });
-
-  // Inject variables at top of head
-  const injectedHead = `
-    <script>
-        window.LAN_BASE_URL = ${JSON.stringify(lanBaseUrl)};
-        window.MG_CSRF = ${JSON.stringify(csrfToken)};
-        window.SPACE_CORE_GRID_SIZE = ${JSON.stringify(requestedGridSize)};
-        window.MG_PLAYER_NAME = ${JSON.stringify(playerDisplayName)};
-    </script>
-    <style>${customThemeCss}</style>
-  `;
-  html = html.replace(/<script>\s*window\.LAN_BASE_URL = <\?=[\s\S]*?<\/style>/, injectedHead);
-
-  // Replace user topbar button
-  let userTopbar = `<a class="btn-topbar" href="../../account.php">Connexion</a>`;
-  if (user) {
-    userTopbar = `<a class="btn-topbar" href="../../account.php">${user.display_name}</a>`;
-    if (user.role === 'admin') {
-      userTopbar += `<a class="btn-topbar" href="../../admin.php">Administration</a>`;
-    }
-  }
-  html = html.replace(/<\?php if \(\$user\): \?>[\s\S]*?<\?php endif; \?>/, userTopbar);
-
-  // Replace theme options in arena
-  const themeOptionsHtml = themes
-    .map(t => `<option value="${t.theme_key}">${t.name}</option>`)
-    .join('');
-  html = html.replace(/<\?php foreach \(\$gameThemes as \$theme\): \?>[\s\S]*?<\?php endforeach; \?>/g, themeOptionsHtml);
-
-  // Replace symbol options
-  const symbolOptionsHtml = symbols
-    .map(s => `<option value="${s.symbol}">${s.symbol} — ${s.label}</option>`)
-    .join('');
-  html = html.replace(/<\?php foreach \(\$gameSymbols as \$symbol\): \?>[\s\S]*?<\?php endforeach; \?>/g, symbolOptionsHtml);
-
-  // Replace remaining PHP echo expressions
-  html = html.replace(/<\?=\s*\$user \? 'hidden' : ''\s*\?>/g, user ? 'hidden' : '');
-  html = html.replace(/<\?=\s*\$user \? 'readonly' : ''\s*\?>/g, user ? 'readonly' : '');
-  html = html.replace(/<\?=\s*mg_escape\(\$playerDisplayName\)\s*\?>/g, playerDisplayName);
-  html = html.replace(/<\?=\s*htmlspecialchars\(\$lanBaseUrl\)\s*\?>/g, lanBaseUrl);
-  html = html.replace(/<\?=\s*htmlspecialchars\(\$serverIp\)\s*\?>/g, hostIp);
-  html = html.replace(/<\?=\s*mg_custom_theme_css\(\)\s*\?>/g, customThemeCss);
-
-  res.send(html);
 });
 
 // ----------------------------------------------------
 // 3. ACCOUNT PAGE (LOGIN, REGISTER, PROFILE)
 // ----------------------------------------------------
 function renderAccountPage(req: Request, res: Response, error = '') {
-  const filePath = path.resolve('account.php');
-  let html = fs.readFileSync(filePath, 'utf-8');
-
-  // Strip php blocks
-  html = html.replace(/<\?php[\s\S]*?\?>/g, (match, offset) => {
-    if (offset < 100) return '';
-    return match;
-  });
-
   const user = req.user;
   const csrfToken = req.session.csrfToken || '';
+  const customThemeCss = db.getCustomThemeCss();
 
   let playerStats = { total: 0, completed: 0, bot_games: 0 };
   let botStats = { learning_level: 0, games_learned: 0 };
@@ -272,93 +226,17 @@ function renderAccountPage(req: Request, res: Response, error = '') {
     botStats = { learning_level: mem.learning_level, games_learned: mem.games_learned };
   }
 
-  // Replace topbar
-  let topbarActions = `<a class="btn-topbar" href="index.php">Retour aux jeux</a>`;
-  if (user) {
-    if (user.role === 'admin') {
-      topbarActions += `<a class="btn-topbar" href="admin.php">Administration</a>`;
-    }
-    topbarActions += `
-      <form method="post" class="inline-form">
-          <input type="hidden" name="csrf_token" value="${csrfToken}">
-          <input type="hidden" name="action" value="logout">
-          <button class="btn-topbar" type="submit">Déconnexion</button>
-      </form>
-    `;
-  }
-  html = html.replace(/<div class="topbar-actions">[\s\S]*?<\/div>\s*<\/header>/, `<div class="topbar-actions">${topbarActions}</div></header>`);
-
-  // Error alert
-  const alertHtml = error ? `<div class="account-alert" role="alert">${error}</div>` : '';
-
-  // Main content
-  let mainContent = '';
-  if (user) {
-    mainContent = `
-      <section class="account-card">
-          <div class="hub-tag">Compte ${user.role === 'admin' ? 'administrateur' : 'joueur'}</div>
-          <h1 class="card-title">Bienvenue, ${user.display_name}</h1>
-          <p class="card-desc">${user.email}</p>
-          ${
-            user.role === 'admin'
-              ? `<a class="btn-primary-action account-action" href="admin.php">Ouvrir le tableau de bord</a>`
-              : `<div class="account-stat-grid">
-                  <div class="account-stat"><strong>${playerStats.total}</strong><span>Parties lancées</span></div>
-                  <div class="account-stat"><strong>${playerStats.completed}</strong><span>Parties terminées</span></div>
-                  <div class="account-stat"><strong>${playerStats.bot_games}</strong><span>Duels contre un bot</span></div>
-                  <div class="account-stat"><strong>${botStats.games_learned}</strong><span>Parties apprises par le bot évolutif</span></div>
-              </div>
-              <p class="account-note">Le bot mémorise vos parties et évite progressivement les coups qui l’ont fait perdre. Cette mémoire est propre à votre compte.</p>
-              <a class="btn-primary-action account-action" href="games/morpion/index.php">Jouer une partie</a>`
-          }
-      </section>
-    `;
-  } else {
-    mainContent = `
-      <section class="account-card">
-          <div class="hub-tag">Espace joueur</div>
-          <h1 class="hub-title">Connexion <span>/ Inscription</span></h1>
-          <p class="hub-subtitle account-intro">Connectez-vous pour suivre vos parties et conserver l’apprentissage du bot sur votre compte.</p>
-          <div class="account-forms">
-              <form method="post" class="account-form">
-                  <h2 class="card-title">Se connecter</h2>
-                  <input type="hidden" name="csrf_token" value="${csrfToken}">
-                  <input type="hidden" name="action" value="login">
-                  <label for="login-email">Adresse e-mail</label>
-                  <input id="login-email" name="email" type="email" autocomplete="username" required maxlength="190">
-                  <label for="login-password">Mot de passe</label>
-                  <input id="login-password" name="password" type="password" autocomplete="current-password" required>
-                  <button class="btn-primary-action" type="submit">Connexion</button>
-              </form>
-              <form method="post" class="account-form">
-                  <h2 class="card-title">Créer un compte</h2>
-                  <input type="hidden" name="csrf_token" value="${csrfToken}">
-                  <input type="hidden" name="action" value="register">
-                  <label for="register-name">Pseudo</label>
-                  <input id="register-name" name="display_name" type="text" autocomplete="nickname" required minlength="2" maxlength="30">
-                  <label for="register-email">Adresse e-mail</label>
-                  <input id="register-email" name="email" type="email" autocomplete="email" required maxlength="190">
-                  <label for="register-password">Mot de passe (10 caractères minimum)</label>
-                  <input id="register-password" name="password" type="password" autocomplete="new-password" required minlength="10">
-                  <button class="btn-primary-action" type="submit">Créer mon compte</button>
-              </form>
-          </div>
-          <p class="account-note">Le compte administrateur est réservé à son propriétaire et ne peut pas être créé depuis le formulaire.</p>
-      </section>
-    `;
-  }
-
-  const presenceScript = user
-    ? `<script>window.MG_CSRF = ${JSON.stringify(csrfToken)};</script><script src="assets/js/account-presence.js" data-api="games/morpion/api.php" defer></script>`
-    : '';
-
-  html = html.replace(/<main class="main-container account-page">[\s\S]*?<\/main>/, `<main class="main-container account-page">${alertHtml}${mainContent}</main>`);
-  html = html.replace(/<\?php if \(\$user\): \?>[\s\S]*?<\?php endif; \?>/, presenceScript);
-
-  res.send(html);
+  res.render('account', {
+    user,
+    csrfToken,
+    customThemeCss,
+    error,
+    playerStats,
+    botStats,
+  });
 }
 
-app.get('/account.php', (req: Request, res: Response) => {
+app.get(['/account', '/account.php'], (req: Request, res: Response) => {
   renderAccountPage(req, res);
 });
 
@@ -437,93 +315,43 @@ app.post('/account.php', (req: Request, res: Response) => {
 // ----------------------------------------------------
 // 4. ADMIN DASHBOARD
 // ----------------------------------------------------
-app.get('/admin.php', (req: Request, res: Response) => {
+app.get(['/admin', '/admin.php'], (req: Request, res: Response) => {
   const user = req.user;
   if (!user || user.role !== 'admin') {
     return res.redirect('account.php');
   }
 
-  const filePath = path.resolve('admin.php');
-  let html = fs.readFileSync(filePath, 'utf-8');
-
-  // Strip php blocks
-  html = html.replace(/<\?php[\s\S]*?\?>/g, (match, offset) => {
-    if (offset < 100) return '';
-    return match;
-  });
-
   const csrfToken = req.session.csrfToken || '';
+  const customThemeCss = db.getCustomThemeCss();
   const summary = db.getSummaryStats();
   const botLevels = db.getBotLevelsStats();
   const players = db.getPlayersAdminList();
+  const now = Math.floor(Date.now() / 1000);
 
-  html = html.replace(/<\?=\s*mg_escape\(\$user\['display_name'\]\)\s*\?>/g, user.display_name);
-  html = html.replace(/<\?=\s*mg_escape\(mg_csrf_token\(\)\)\s*\?>/g, csrfToken);
-  html = html.replace(/<\?=\s*json_encode\(mg_csrf_token\(\)\)\s*\?>/g, JSON.stringify(csrfToken));
-
-  // Summary counts
-  html = html.replace(/<\?=\s*\(int\)\$summary\['players'\]\s*\?>/g, String(summary.players));
-  html = html.replace(/<\?=\s*\(int\)\$summary\['online'\]\s*\?>/g, String(summary.online));
-  html = html.replace(/<\?=\s*\(int\)\$summary\['games'\]\s*\?>/g, String(summary.games));
-  html = html.replace(/<\?=\s*\(int\)\$summary\['completed'\]\s*\?>/g, String(summary.completed));
-  html = html.replace(/<\?=\s*\(int\)\$summary\['active_games'\]\s*\?>/g, String(summary.active_games));
-  html = html.replace(/<\?=\s*\(int\)\$summary\['bot_games'\]\s*\?>/g, String(summary.bot_games));
-  html = html.replace(/<\?=\s*\(int\)\$summary\['trained_accounts'\]\s*\?>/g, String(summary.trained_accounts));
-
-  // Bot levels table
-  let botRows = '';
-  if (!botLevels.length) {
-    botRows = '<tr><td colspan="5" class="admin-empty">Aucune partie contre le bot pour le moment.</td></tr>';
-  } else {
-    for (const b of botLevels) {
-      botRows += `<tr><td>${b.bot_level}</td><td>${b.games}</td><td>${b.bot_wins}</td><td>${b.player_wins}</td><td>${b.ties}</td></tr>`;
-    }
-  }
-  html = html.replace(/<tbody id="bot-level-rows">[\s\S]*?<\/tbody>/, `<tbody id="bot-level-rows">${botRows}</tbody>`);
-
-  // Players table
-  let playerRows = '';
-  if (!players.length) {
-    playerRows = '<tr><td colspan="8" class="admin-empty">Aucun joueur inscrit.</td></tr>';
-  } else {
-    const now = Math.floor(Date.now() / 1000);
-    for (const p of players) {
-      const isOnline = p.last_seen_at >= now - 90;
-      const statusText = p.is_banned ? 'Banni' : isOnline ? 'En ligne' : 'Hors ligne';
-      const dotClass = `presence-dot ${isOnline && !p.is_banned ? 'is-online' : ''}`;
-      const dateStr = new Date(p.created_at * 1000).toLocaleDateString('fr-FR');
-      playerRows += `<tr>
-        <td><span class="${dotClass}"></span>${statusText}</td>
-        <td>${p.display_name}</td>
-        <td>${p.email}</td>
-        <td>${p.games}</td>
-        <td>${p.learning_level}</td>
-        <td>${p.games_learned}</td>
-        <td>${dateStr}</td>
-        <td><button class="admin-action-button" type="button">Actions</button></td>
-      </tr>`;
-    }
-  }
-  html = html.replace(/<tbody id="player-rows">[\s\S]*?<\/tbody>/, `<tbody id="player-rows">${playerRows}</tbody>`);
-
-  res.send(html);
+  res.render('admin', {
+    user,
+    csrfToken,
+    customThemeCss,
+    summary,
+    botLevels,
+    players,
+    now,
+  });
 });
 
 // ----------------------------------------------------
 // 5. SPACE CORE VIEW & API
 // ----------------------------------------------------
 app.get(['/space-core', '/space-core/', '/space-core/index.php'], (req: Request, res: Response) => {
-  const filePath = path.resolve('space-core/index.php');
-  let html = fs.readFileSync(filePath, 'utf-8');
-  html = html.replace(/<\?php[\s\S]*?\?>/g, '');
-  html = html.replace(
-    /<\?=htmlspecialchars\(\$_SESSION\['space_csrf'\],ENT_QUOTES,'UTF-8'\)\?>/,
-    req.session.csrfToken || ''
-  );
-  res.send(html);
+  if (req.path === '/space-core') {
+    return res.redirect(301, '/space-core/');
+  }
+  res.render('space', {
+    csrfToken: req.session.csrfToken || '',
+  });
 });
 
-app.post(['/space-core/api_space.php', '/api/space'], async (req: Request, res: Response) => {
+app.post(['/space-core/api_space.php', '/api_space.php', '/api/space'], async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
 
@@ -578,7 +406,7 @@ app.post(['/space-core/api_space.php', '/api/space'], async (req: Request, res: 
 // ----------------------------------------------------
 // 6. MORPION MULTIPLAYER API (API.PHP & /API/MORPION)
 // ----------------------------------------------------
-app.all(['/games/morpion/api.php', '/api/morpion'], async (req: Request, res: Response) => {
+app.all(['/games/morpion/api.php', '/api/morpion', '/api.php'], async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 
