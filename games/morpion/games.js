@@ -253,7 +253,7 @@ const MorpionGame = (function() {
         // Déjà dessiné pour cette victoire : on ne relance pas l'animation
         if (animate && key === winLineKey && document.getElementById('win-line-svg')) return;
 
-        const container = document.getElementById('board-container');
+        const container = document.getElementById('board-container') || document.getElementById('game-board') || document.getElementById('board');
         const firstCell = document.querySelector(`.board-cell[data-index="${combo[0]}"]`);
         const lastCell  = document.querySelector(`.board-cell[data-index="${combo[combo.length - 1]}"]`);
         if (!container || !firstCell || !lastCell) return;
@@ -290,6 +290,10 @@ const MorpionGame = (function() {
         line.setAttribute('x2', x2); line.setAttribute('y2', y2);
         line.setAttribute('stroke-width', Math.max(5, a.width * 0.12));
         line.style.setProperty('--len', length);
+
+        combo.forEach(idx => {
+            document.querySelector(`.board-cell[data-index="${idx}"]`)?.classList.add('winning-cell');
+        });
 
         svg.appendChild(line);
         container.appendChild(svg);
@@ -329,28 +333,18 @@ const MorpionGame = (function() {
     }
 
     function renderBoard() {
-        const boardEl = document.getElementById('game-board');
+        const boardEl = document.getElementById('game-board') || document.getElementById('board');
         if (!boardEl) return;
 
-        if (boardSize > 5) {
-            boardEl.className = 'board-grid-gomoku';
-            boardEl.style.display = 'grid';
-            boardEl.style.gridTemplateColumns = `repeat(${boardSize}, minmax(0, 1fr))`;
-            boardEl.style.gridTemplateRows = `repeat(${boardSize}, minmax(0, 1fr))`;
-            boardEl.style.gridAutoRows = 'minmax(0, 1fr)';
-        } else if (boardSize === 5) {
-            boardEl.className = 'board-grid-5x5';
-            boardEl.style.display = '';
-            boardEl.style.gridTemplateColumns = '';
-            boardEl.style.gridTemplateRows = '';
-            boardEl.style.gridAutoRows = '';
-        } else {
-            boardEl.className = 'board-grid-3x3';
-            boardEl.style.display = '';
-            boardEl.style.gridTemplateColumns = '';
-            boardEl.style.gridTemplateRows = '';
-            boardEl.style.gridAutoRows = '';
-        }
+        // Uniformise la grille selon la consigne :
+        // Le plateau utilise display: grid, repeat(N, 1fr) et gap: 0
+        boardEl.className = 'board-grid';
+        boardEl.style.display = 'grid';
+        boardEl.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
+        boardEl.style.gridTemplateRows = `repeat(${boardSize}, 1fr)`;
+        boardEl.style.gridAutoRows = '1fr';
+        boardEl.style.gap = '0';
+        boardEl.style.setProperty('--grid-n', boardSize);
 
         boardEl.innerHTML = '';
         const gridSizeSelect = document.getElementById('arena-grid-size');
@@ -358,9 +352,13 @@ const MorpionGame = (function() {
         boardEl.setAttribute('role', 'grid');
         boardEl.setAttribute('aria-label', `Plateau de morpion ${boardSize} par ${boardSize}`);
 
+        // Taille dynamique des symboles (X / O) : font-size s'adapte à la grille
+        const symbolFontSize = `calc(min(700px, 80vmin) / ${boardSize} * 0.72)`;
+
         board.forEach((val, idx) => {
             const cell = document.createElement('div');
-            cell.className = 'board-cell' + (val ? ` cell-${val.toLowerCase()} filled` : '');
+            cell.className = 'board-cell cell' + (val ? ` cell-${val.toLowerCase()} filled` : '');
+            cell.style.fontSize = symbolFontSize;
             cell.textContent = val ? symbolFor(val) : '';
             cell.dataset.index = idx;
             cell.setAttribute('role', 'gridcell');
@@ -573,6 +571,10 @@ const MorpionGame = (function() {
         } else {
             scores[result.winner]++;
             SoundEffects.win();
+
+            if (result.combo) {
+                drawWinLine(result.combo, true);
+            }
 
             const winnerName = playerNames[result.winner] || `Joueur ${result.winner}`;
             showRoundEndModal(`Victoire de ${winnerName} ! Choisissez la suite de la partie.`);
@@ -1276,6 +1278,36 @@ const MorpionGame = (function() {
         initEvents: function() {
             updateStatsPill();
 
+            // Sélecteur de variante dans le menu (3x3 classique ou 5 à aligner)
+            const syncPreferredRule = (rule, isUserAction = false) => {
+                const btn3 = document.getElementById('btn-rule-3');
+                const btn5 = document.getElementById('btn-rule-5');
+                if (btn3 && btn5) {
+                    if (rule === '5') {
+                        btn5.classList.add('active');
+                        btn3.classList.remove('active');
+                    } else {
+                        btn3.classList.add('active');
+                        btn5.classList.remove('active');
+                    }
+                }
+                const targetSize = rule === '5' ? '10' : '3';
+                ['local-grid-size', 'bot-grid-size', 'wifi-grid-size', 'tournament-grid-select', 'arena-grid-size'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = targetSize;
+                });
+                if (isUserAction) {
+                    SoundEffects.click();
+                    localStorage.setItem('mg_preferred_rule', rule);
+                }
+            };
+
+            const savedRule = localStorage.getItem('mg_preferred_rule') || '3';
+            syncPreferredRule(savedRule, false);
+
+            document.getElementById('btn-rule-3')?.addEventListener('click', () => syncPreferredRule('3', true));
+            document.getElementById('btn-rule-5')?.addEventListener('click', () => syncPreferredRule('5', true));
+
             // Match Local : ouvre modale de configuration
             document.getElementById('btn-local-quick')?.addEventListener('click', () => {
                 SoundEffects.click();
@@ -1307,7 +1339,7 @@ const MorpionGame = (function() {
                         'medium': '🤖 Intermédiaire',
                         'advanced': '🧠 Avancé',
                         'legend': '👑 Légende',
-                        'adaptive': '🧬 Évolutif'
+                        'adaptive': '🧬 Adaptatif'
                     };
                     document.getElementById('bot-modal-level-name').textContent = levelTitles[level] || level;
                     document.getElementById('bot-setup-modal').style.display = 'flex';
@@ -1408,6 +1440,17 @@ const MorpionGame = (function() {
             arenaSymbolOSelect?.addEventListener('change', () => {
                 changeSymbol('O', arenaSymbolOSelect.value);
             });
+            function toggleBoardSize() {
+                const container = document.getElementById('board-container');
+                if (!container) return;
+                const isXl = container.classList.toggle('board-xl');
+                localStorage.setItem('mg_board_xl', isXl ? 'true' : 'false');
+                const sizeBtn = document.getElementById('btn-toggle-size');
+                if (sizeBtn) {
+                    sizeBtn.innerHTML = isXl ? '<span>🔍 Normal</span>' : '<span>🔍 Grand</span>';
+                }
+            }
+
             // Bouton Agrandir les cases XL
             document.getElementById('btn-toggle-size')?.addEventListener('click', () => {
                 SoundEffects.click();

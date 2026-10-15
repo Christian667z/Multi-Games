@@ -83,10 +83,27 @@
     <!-- VUE 1 : MENU PRINCIPAL -->
     <main class="main-container" id="menu-view">
         <div class="menu-header">
-            <div class="menu-pretitle">
-                <span>MORPION · 3X3 CLASSIQUE OU 5 À ALIGNER</span>
+            <div class="menu-header-main">
+                <div class="menu-pretitle">
+                    <span>MORPION · 3X3 CLASSIQUE OU 5 À ALIGNER</span>
+                </div>
+                <h1 class="menu-title">MENU</h1>
             </div>
-            <h1 class="menu-title">MENU</h1>
+
+            <!-- Sélecteur rapide de règle (3x3 ou 5 à aligner) -->
+            <div class="menu-rule-selector" id="menu-rule-selector" title="Sélectionnez la variante souhaitée">
+                <span class="rule-selector-label">Format :</span>
+                <div class="rule-selector-pills">
+                    <button type="button" class="btn-rule-pill active" data-rule="3" id="btn-rule-3" title="Morpion traditionnel 3x3 avec 3 symboles à aligner">
+                        <span class="rule-pill-badge">3×3</span>
+                        <span class="rule-pill-name">Classique</span>
+                    </button>
+                    <button type="button" class="btn-rule-pill" data-rule="5" id="btn-rule-5" title="Morpion grand format avec 5 symboles à aligner">
+                        <span class="rule-pill-badge">5 à aligner</span>
+                        <span class="rule-pill-name">Grand plateau</span>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div class="modes-grid">
@@ -94,7 +111,7 @@
             <div class="mode-card">
                 <div class="card-top">
                     <span class="card-step-num">01 · LOCAL</span>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" opacity="0.6">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" opacity="0.7">
                         <line x1="8" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="16" y2="21"/>
                         <line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/>
                     </svg>
@@ -102,22 +119,22 @@
 
                 <div class="card-body">
                     <div class="card-illustration">
-                        <svg width="130" height="75" viewBox="0 0 140 80" fill="none" stroke="currentColor">
-                            <path d="M20 20 L120 20 M20 40 L120 40 M20 60 L120 60" stroke="var(--card-border)" stroke-width="2"/>
-                            <path d="M45 10 L45 70 M85 10 L85 70" stroke="var(--card-border)" stroke-width="2"/>
-                            <text x="25" y="36" fill="var(--color-x)" font-size="18" font-weight="900" font-family="sans-serif">X</text>
-                            <text x="60" y="36" fill="var(--color-o)" font-size="18" font-weight="900" font-family="sans-serif">O</text>
-                            <text x="98" y="36" fill="var(--color-x)" font-size="18" font-weight="900" font-family="sans-serif">X</text>
-                            <text x="25" y="56" fill="var(--color-o)" font-size="18" font-weight="900" font-family="sans-serif">O</text>
-                            <text x="60" y="56" fill="var(--color-x)" font-size="18" font-weight="900" font-family="sans-serif">X</text>
-                            <text x="98" y="56" fill="var(--color-o)" font-size="18" font-weight="900" font-family="sans-serif">O</text>
+                        <svg width="130" height="65" viewBox="0 0 140 70" fill="none" stroke="currentColor">
+                            <path d="M20 18 L120 18 M20 36 L120 36 M20 54 L120 54" stroke="var(--card-border)" stroke-width="1.8"/>
+                            <path d="M45 10 L45 62 M85 10 L85 62" stroke="var(--card-border)" stroke-width="1.8"/>
+                            <text x="25" y="31" fill="var(--color-x)" font-size="16" font-weight="900" font-family="sans-serif">X</text>
+                            <text x="60" y="31" fill="var(--color-o)" font-size="16" font-weight="900" font-family="sans-serif">O</text>
+                            <text x="98" y="31" fill="var(--color-x)" font-size="16" font-weight="900" font-family="sans-serif">X</text>
+                            <text x="25" y="49" fill="var(--color-o)" font-size="16" font-weight="900" font-family="sans-serif">O</text>
+                            <text x="60" y="49" fill="var(--color-x)" font-size="16" font-weight="900" font-family="sans-serif">X</text>
+                            <text x="98" y="49" fill="var(--color-o)" font-size="16" font-weight="900" font-family="sans-serif">O</text>
                         </svg>
                     </div>
 
                     <h2 class="card-title">Hors ligne</h2>
                     <p class="card-desc">Une partie à deux, sur cet appareil.</p>
 
-                    <div class="card-actions">
+                    <div class="card-buttons-zone">
                         <button class="btn-primary-action" id="btn-local-quick">
                             Match amical
                         </button>
@@ -138,10 +155,25 @@
                 </div>
 
                 <div class="card-body">
-                    <h2 class="card-title" style="margin-top: 1.5rem;">Contre un bot</h2>
+                    <div class="card-illustration">
+                        <svg width="130" height="65" viewBox="0 0 140 70" fill="none" stroke="currentColor">
+                            <path d="M20 18 L120 18 M20 36 L120 36 M20 54 L120 54" stroke="var(--card-border)" stroke-width="1.8"/>
+                            <path d="M45 10 L45 62 M85 10 L85 62" stroke="var(--card-border)" stroke-width="1.8"/>
+                            <rect x="52" y="24" width="26" height="24" rx="6" fill="color-mix(in srgb, var(--primary) 18%, transparent)" stroke="var(--primary)" stroke-width="1.5"/>
+                            <circle cx="59" cy="33" r="2.2" fill="var(--primary)"/>
+                            <circle cx="71" cy="33" r="2.2" fill="var(--primary)"/>
+                            <path d="M58 41 Q65 44 72 41" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round"/>
+                            <text x="25" y="31" fill="var(--color-x)" font-size="16" font-weight="900" font-family="sans-serif">X</text>
+                            <text x="98" y="31" fill="var(--color-o)" font-size="16" font-weight="900" font-family="sans-serif">O</text>
+                            <text x="25" y="49" fill="var(--color-o)" font-size="16" font-weight="900" font-family="sans-serif">O</text>
+                            <text x="98" y="49" fill="var(--color-x)" font-size="16" font-weight="900" font-family="sans-serif">X</text>
+                        </svg>
+                    </div>
+
+                    <h2 class="card-title">Contre un bot</h2>
                     <p class="card-desc">Choisissez son niveau ou laissez-le s'adapter à votre style.</p>
 
-                    <div class="bot-levels-grid">
+                    <div class="card-buttons-zone bot-levels-grid">
                         <button class="btn-bot-level level-novice" data-level="novice">
                             <span>🐣</span> Novice
                         </button>
@@ -155,19 +187,19 @@
                             <span>👑</span> Légende
                         </button>
                         <button class="btn-bot-level level-adaptive" data-level="adaptive">
-                            <span>🧬</span> Évolutif
+                            <span>🧬</span> Adaptatif
                         </button>
                     </div>
 
-                    <div class="card-footer-note" style="margin-top: 1.4rem;">Du joueur débutant au Minimax invincible.</div>
+                    <div class="card-footer-note">Du joueur débutant au Minimax invincible.</div>
                 </div>
             </div>
 
             <!-- CARTE 3 : DISTANCE / WI-FI -->
             <div class="mode-card">
                 <div class="card-top">
-                    <span class="card-step-num">03 · WI-FI</span>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" opacity="0.8">
+                    <span class="card-step-num">03 · WI-FI / SALON</span>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" opacity="0.8">
                         <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
                         <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
                         <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
@@ -177,27 +209,32 @@
 
                 <div class="card-body">
                     <div class="card-illustration">
-                        <svg width="120" height="70" viewBox="0 0 120 70" fill="none">
-                            <circle cx="45" cy="35" r="24" stroke="var(--card-border)" stroke-width="2" stroke-dasharray="4 4"/>
-                            <circle cx="75" cy="35" r="24" stroke="var(--card-border)" stroke-width="2" stroke-dasharray="4 4"/>
-                            <text x="35" y="44" fill="var(--color-x)" font-size="24" font-weight="900" font-family="sans-serif">X</text>
-                            <text x="70" y="44" fill="var(--color-o)" font-size="24" font-weight="900" font-family="sans-serif">O</text>
+                        <svg width="130" height="65" viewBox="0 0 140 70" fill="none" stroke="currentColor">
+                            <path d="M20 18 L120 18 M20 36 L120 36 M20 54 L120 54" stroke="var(--card-border)" stroke-width="1.8"/>
+                            <path d="M45 10 L45 62 M85 10 L85 62" stroke="var(--card-border)" stroke-width="1.8"/>
+                            <path d="M55 27 A 15 15 0 0 1 75 27" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+                            <path d="M59 32 A 9 9 0 0 1 71 32" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+                            <circle cx="65" cy="37" r="2.2" fill="var(--primary)"/>
+                            <text x="25" y="31" fill="var(--color-x)" font-size="16" font-weight="900" font-family="sans-serif">X</text>
+                            <text x="98" y="31" fill="var(--color-o)" font-size="16" font-weight="900" font-family="sans-serif">O</text>
+                            <text x="25" y="49" fill="var(--color-o)" font-size="16" font-weight="900" font-family="sans-serif">O</text>
+                            <text x="98" y="49" fill="var(--color-x)" font-size="16" font-weight="900" font-family="sans-serif">X</text>
                         </svg>
                     </div>
 
                     <h2 class="card-title">À distance</h2>
                     <p class="card-desc">Affrontez un autre joueur sur le même réseau Wi-Fi.</p>
 
-                    <div class="card-actions">
+                    <div class="card-buttons-zone">
                         <button class="btn-primary-action" id="btn-wifi-host">
-                            Match amical en ligne
+                            Créer une salle
                         </button>
                         <button class="btn-secondary-action" id="btn-wifi-join">
-                            Rejoindre une partie
+                            Rejoindre avec un code
                         </button>
                     </div>
 
-                    <div class="card-footer-note">Partagez l'IP locale ou le code de salon.</div>
+                    <div class="card-footer-note">Partagez l'IP locale ou le code à 4 lettres.</div>
                 </div>
             </div>
         </div>
@@ -272,7 +309,7 @@
         <div id="turn-indicator" class="turn-indicator">À votre tour (✕)</div>
         <div id="status-banner" style="display: none; font-size: 1.25rem; font-weight: 800; color: var(--primary); margin-bottom: 0.8rem; text-align: center;"></div>
         <div class="board-container" id="board-container">
-            <div id="game-board" class="board-grid-3x3"></div>
+            <div id="game-board" class="board-grid"></div>
         </div>
     </div>
 
