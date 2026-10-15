@@ -227,7 +227,7 @@ app.get(['/games/morpion', '/games/morpion/', '/games/morpion/index.php'], (req:
 // ----------------------------------------------------
 // 3. ACCOUNT PAGE (LOGIN, REGISTER, PROFILE, STATS, HISTORIQUE, AVATAR)
 // ----------------------------------------------------
-const AVAILABLE_AVATARS = ['🚀', '⚡', '🤖', '👑', '🐺', '🦊', '🐉', '🎮', '🛸', '🎯', '🦁', '🦅', '💎', '🔮', '🥋', '👾'];
+const AVAILABLE_AVATARS = ['🚀', '⚡', '🤖', '👑', '🐺', '🦊', '🐉', '🎮'];
 
 function renderAccountPage(req: Request, res: Response, error = '', success = '') {
   const user = req.user;

@@ -231,21 +231,21 @@
                 <div class="account-tab-content" id="tab-settings">
                     <div class="hub-tag" style="margin-bottom: 1.2rem;">Personnalisation &amp; Sécurité</div>
 
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1.4rem;">
-                        <!-- 1. Changer d'Avatar -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1.4rem; align-items: start;">
+                        <!-- 1. Changer d'Avatar (Boutons Radio Fiables) -->
                         <div class="account-form">
                             <h3 class="card-title" style="font-size: 1.15rem;">Changer d'Avatar</h3>
                             <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Choisissez l'icône qui vous représentera dans les parties et au classement.</p>
                             <form method="post" action="account.php">
                                 <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
                                 <input type="hidden" name="action" value="update_avatar">
-                                <input type="hidden" name="avatar" id="selected-avatar-input" value="<%= user.avatar || '🚀' %>">
 
-                                <div class="avatar-picker-grid">
+                                <div class="avatar-grid">
                                     <% availableAvatars.forEach(function(av) { %>
-                                        <button type="button" class="avatar-choice-btn <%= (user.avatar || '🚀') === av ? 'selected' : '' %>" data-avatar="<%= av %>" onclick="selectAvatar('<%= av %>')">
-                                            <%= av %>
-                                        </button>
+                                        <label class="avatar <%= (user.avatar || '🚀') === av ? 'active' : '' %>" title="Choisir <%= av %>">
+                                            <input type="radio" name="avatar" value="<%= av %>" <%= (user.avatar || '🚀') === av ? 'checked' : '' %> onchange="document.getElementById('current-user-avatar').textContent = this.value;">
+                                            <span><%= av %></span>
+                                        </label>
                                     <% }); %>
                                 </div>
                                 <button class="btn-primary-action" type="submit" style="margin-top: 0.5rem;">Enregistrer l'avatar</button>
@@ -260,7 +260,7 @@
                                 <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
                                 <input type="hidden" name="action" value="update_profile">
                                 <label for="update-name">Nouveau pseudo (2 à 30 caractères)</label>
-                                <input id="update-name" name="display_name" type="text" value="<%= user.display_name %>" required minlength="2" maxlength="30" autocomplete="nickname">
+                                <input id="update-name" name="display_name" type="text" value="<%= user.display_name %>" required minlength="2" maxlength="30" autocomplete="nickname" placeholder="Votre nouveau pseudo">
                                 <button class="btn-primary-action" type="submit">Sauvegarder le pseudo</button>
                             </form>
                         </div>
@@ -273,7 +273,7 @@
                                 <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
                                 <input type="hidden" name="action" value="update_email">
                                 <label for="update-email">Nouvelle adresse e-mail</label>
-                                <input id="update-email" name="email" type="email" value="<%= user.email %>" required maxlength="190" autocomplete="email">
+                                <input id="update-email" name="email" type="email" value="<%= user.email %>" required maxlength="190" autocomplete="email" placeholder="votre.email@exemple.com">
                                 <button class="btn-primary-action" type="submit">Sauvegarder l'e-mail</button>
                             </form>
                         </div>
@@ -287,13 +287,26 @@
                                 <input type="hidden" name="action" value="update_password">
 
                                 <label for="current-password">Mot de passe actuel</label>
-                                <input id="current-password" name="current_password" type="password" required autocomplete="current-password">
+                                <div class="password-input-wrapper">
+                                    <input id="current-password" name="current_password" type="password" required autocomplete="current-password" placeholder="Votre mot de passe actuel">
+                                    <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('current-password', this)" title="Afficher ou masquer">👁️</button>
+                                </div>
 
                                 <label for="new-password">Nouveau mot de passe (min. 10 caractères)</label>
-                                <input id="new-password" name="new_password" type="password" required minlength="10" autocomplete="new-password">
+                                <div class="password-input-wrapper">
+                                    <input id="new-password" name="new_password" type="password" required minlength="10" autocomplete="new-password" placeholder="Nouveau mot de passe" oninput="updatePasswordCounter(this.value, 'update-pass-count')">
+                                    <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('new-password', this)" title="Afficher ou masquer">👁️</button>
+                                </div>
+                                <div class="password-counter-bar">
+                                    <span>Longueur requise :</span>
+                                    <span id="update-pass-count" class="password-counter-text">0/10 caractères min.</span>
+                                </div>
 
                                 <label for="confirm-password">Confirmer le nouveau mot de passe</label>
-                                <input id="confirm-password" name="confirm_password" type="password" required minlength="10" autocomplete="new-password">
+                                <div class="password-input-wrapper">
+                                    <input id="confirm-password" name="confirm_password" type="password" required minlength="10" autocomplete="new-password" placeholder="Confirmation du mot de passe">
+                                    <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('confirm-password', this)" title="Afficher ou masquer">👁️</button>
+                                </div>
 
                                 <button class="btn-primary-action" type="submit">Modifier le mot de passe</button>
                             </form>
@@ -379,55 +392,109 @@
                 </div>
             </div>
         <% } else { %>
-            <!-- Utilisateur non connecté : Formulaires Connexion et Inscription -->
-            <section class="account-card">
+            <!-- Utilisateur non connecté : Formulaires Connexion et Inscription Équilibrés -->
+            <section class="account-card" style="max-width: 980px;">
                 <div class="hub-tag">Espace Joueur</div>
                 <h1 class="hub-title">CONNEXION <span>/ INSCRIPTION</span></h1>
                 <p class="hub-subtitle account-intro">
                     Connectez-vous pour enregistrer votre historique de parties, personnaliser votre avatar, grimper dans le classement et entraîner l’IA.
                 </p>
-                <div class="account-forms">
+                <div class="account-forms auth-grid">
                     <!-- Formulaire de Connexion -->
-                    <form method="post" action="account.php" class="account-form">
+                    <form method="post" action="account.php" class="account-form" id="login-form">
                         <h2 class="card-title">Se connecter</h2>
+
                         <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
                         <input type="hidden" name="action" value="login">
 
                         <label for="login-email">Adresse e-mail</label>
-                        <input id="login-email" name="email" type="email" autocomplete="username" required maxlength="190" placeholder="votre@email.com">
+                        <input id="login-email" name="email" type="email" autocomplete="username" required maxlength="190" placeholder="Votre adresse e-mail" oninput="validateEmailField(this, 'login-email-error')">
+                        <div id="login-email-error" class="field-error-msg" style="display: none;"></div>
 
                         <label for="login-password">Mot de passe</label>
-                        <input id="login-password" name="password" type="password" autocomplete="current-password" required placeholder="••••••••••">
+                        <div class="password-input-wrapper">
+                            <input id="login-password" name="password" type="password" autocomplete="current-password" required placeholder="Votre mot de passe">
+                            <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('login-password', this)" title="Afficher ou masquer" aria-label="Afficher ou masquer le mot de passe">👁️</button>
+                        </div>
+                        <div id="login-password-error" class="field-error-msg" style="display: none;"></div>
 
-                        <button class="btn-primary-action" type="submit">Connexion ➔</button>
+                        <div class="auth-helper-row">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="remember" checked>
+                                <span>Rester connecté</span>
+                            </label>
+                            <a href="javascript:void(0)" class="auth-link" onclick="openForgotModal()">
+                                Mot de passe oublié ?
+                            </a>
+                        </div>
+
+                        <button class="btn-primary-action" type="submit" style="margin-top: 0.5rem;">
+                            Connexion à mon compte ➔
+                        </button>
+
+                        <!-- Encart d'aide & avantages du compte pour combler le vide élégamment -->
+                        <div class="auth-card-extra">
+                            <a href="#register-name" class="auth-switch-link" onclick="document.getElementById('register-name').focus();">
+                                <span>Pas encore inscrit ?</span>
+                                <strong>Créer un compte gratuit ➔</strong>
+                            </a>
+
+                            <div class="auth-features-list">
+                                <div class="auth-feature-item">
+                                    <span>🏆</span>
+                                    <span>Parties enregistrées &amp; ratio victoires/défaites</span>
+                                </div>
+                                <div class="auth-feature-item">
+                                    <span>👑</span>
+                                    <span>Position officielle au classement mondial</span>
+                                </div>
+                                <div class="auth-feature-item">
+                                    <span>🧬</span>
+                                    <span>Mémoire d'IA évolutive propre à votre compte</span>
+                                </div>
+                            </div>
+                        </div>
                     </form>
 
                     <!-- Formulaire d'Inscription -->
-                    <form method="post" action="account.php" class="account-form">
+                    <form method="post" action="account.php" class="account-form" id="register-form">
                         <h2 class="card-title">Créer un compte</h2>
                         <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
                         <input type="hidden" name="action" value="register">
 
                         <label for="register-name">Pseudo joueur</label>
-                        <input id="register-name" name="display_name" type="text" autocomplete="nickname" required minlength="2" maxlength="30" placeholder="Ex: CyberSamurai">
+                        <input id="register-name" name="display_name" type="text" autocomplete="nickname" required minlength="2" maxlength="30" placeholder="Votre pseudo (2 à 30 car.)" oninput="validatePseudoField(this, 'reg-name-error')">
+                        <div id="reg-name-error" class="field-error-msg" style="display: none;"></div>
 
                         <label for="register-email">Adresse e-mail</label>
-                        <input id="register-email" name="email" type="email" autocomplete="email" required maxlength="190" placeholder="votre@email.com">
+                        <input id="register-email" name="email" type="email" autocomplete="email" required maxlength="190" placeholder="votre@email.com" oninput="validateEmailField(this, 'reg-email-error')">
+                        <div id="reg-email-error" class="field-error-msg" style="display: none;"></div>
 
                         <label for="register-password">Mot de passe (10 caractères min.)</label>
-                        <input id="register-password" name="password" type="password" autocomplete="new-password" required minlength="10" placeholder="••••••••••">
+                        <div class="password-input-wrapper">
+                            <input id="register-password" name="password" type="password" autocomplete="new-password" required minlength="10" placeholder="Votre mot de passe" oninput="updatePasswordCounter(this.value, 'reg-pass-count'); validatePassField(this, 'reg-password-error')">
+                            <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('register-password', this)" title="Afficher ou masquer" aria-label="Afficher ou masquer le mot de passe">👁️</button>
+                        </div>
+                        <div class="password-counter-bar">
+                            <span>Longueur :</span>
+                            <span id="reg-pass-count" class="password-counter-text">0/10 caractères min.</span>
+                        </div>
+                        <div id="reg-password-error" class="field-error-msg" style="display: none;"></div>
 
-                        <label>Avatar de départ :</label>
-                        <input type="hidden" name="avatar" id="reg-avatar-val" value="🚀">
-                        <div class="avatar-picker-grid" style="grid-template-columns: repeat(8, 1fr); margin-bottom: 0.5rem;">
-                            <% availableAvatars.slice(0, 8).forEach(function(av, idx) { %>
-                                <button type="button" class="avatar-choice-btn <%= idx === 0 ? 'selected' : '' %>" onclick="document.getElementById('reg-avatar-val').value='<%= av %>'; document.querySelectorAll('.reg-av-btn').forEach(b => b.classList.remove('selected')); this.classList.add('selected');" class="reg-av-btn">
-                                    <%= av %>
-                                </button>
+                        <label style="margin-top: 0.2rem; display: block;">Choisissez votre avatar :</label>
+                        <!-- Grille responsive avec boutons radio (un seul choix actif, pas de débordement) -->
+                        <div class="avatar-grid" id="reg-avatar-grid">
+                            <% availableAvatars.forEach(function(av, idx) { %>
+                                <label class="avatar <%= idx === 0 ? 'active' : '' %>" title="Avatar <%= av %>">
+                                    <input type="radio" name="avatar" value="<%= av %>" <%= idx === 0 ? 'checked' : '' %>>
+                                    <span><%= av %></span>
+                                </label>
                             <% }); %>
                         </div>
 
-                        <button class="btn-primary-action" type="submit">Créer mon compte ✨</button>
+                        <button class="btn-primary-action" type="submit" style="margin-top: 0.5rem;">
+                            Créer mon compte ✨
+                        </button>
                     </form>
                 </div>
             </section>
@@ -456,19 +523,121 @@
             });
         });
 
-        // Sélection d'avatar
-        function selectAvatar(avatar) {
-            const input = document.getElementById('selected-avatar-input');
-            if (input) input.value = avatar;
-            document.querySelectorAll('.avatar-choice-btn').forEach(btn => {
-                if (btn.getAttribute('data-avatar') === avatar) {
-                    btn.classList.add('selected');
-                } else {
-                    btn.classList.remove('selected');
+        // Gestion de la sélection d'avatar exclusive
+        document.querySelectorAll('.avatar-grid').forEach(grid => {
+            grid.addEventListener('change', (e) => {
+                if (e.target.matches('input[type="radio"]')) {
+                    grid.querySelectorAll('.avatar').forEach(a => a.classList.remove('active'));
+                    e.target.closest('.avatar')?.classList.add('active');
                 }
             });
-            const avatarDisplay = document.getElementById('current-user-avatar');
-            if (avatarDisplay) avatarDisplay.textContent = avatar;
+        });
+
+        // Afficher / masquer le mot de passe (Œil)
+        function togglePasswordVisibility(inputId, button) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                button.textContent = '🙈';
+                button.setAttribute('title', 'Masquer le mot de passe');
+            } else {
+                input.type = 'password';
+                button.textContent = '👁️';
+                button.setAttribute('title', 'Afficher le mot de passe');
+            }
+        }
+
+        // Compteur dynamique de caractères pour les mots de passe
+        function updatePasswordCounter(value, counterElementId) {
+            const counter = document.getElementById(counterElementId);
+            if (!counter) return;
+            const len = (value || '').length;
+            if (len >= 10) {
+                counter.textContent = `${len}/10 caractères ✓`;
+                counter.className = 'password-counter-text valid';
+            } else {
+                counter.textContent = `${len}/10 caractères min.`;
+                counter.className = 'password-counter-text';
+            }
+        }
+
+        // Validation en direct du pseudo
+        function validatePseudoField(input, errId) {
+            const err = document.getElementById(errId);
+            if (!err) return;
+            const len = (input.value || '').trim().length;
+            if (len > 0 && (len < 2 || len > 30)) {
+                err.textContent = 'Le pseudo doit comporter entre 2 et 30 caractères.';
+                err.style.display = 'block';
+            } else {
+                err.style.display = 'none';
+            }
+        }
+
+        // Validation en direct de l'email
+        function validateEmailField(input, errId) {
+            const err = document.getElementById(errId);
+            if (!err) return;
+            const val = (input.value || '').trim();
+            if (val.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+                err.textContent = 'Adresse e-mail invalide.';
+                err.style.display = 'block';
+            } else {
+                err.style.display = 'none';
+            }
+        }
+
+        // Validation en direct du mot de passe
+        function validatePassField(input, errId) {
+            const err = document.getElementById(errId);
+            if (!err) return;
+            const val = input.value || '';
+            if (val.length > 0 && val.length < 10) {
+                err.textContent = `Mot de passe trop court (${val.length}/10 caractères requis).`;
+                err.style.display = 'block';
+            } else {
+                err.style.display = 'none';
+            }
+        }
+
+        // Répartition intelligente des erreurs serveur sous les champs cibles
+        document.addEventListener('DOMContentLoaded', () => {
+            const serverAlert = document.querySelector('.account-alert');
+            if (serverAlert) {
+                const text = serverAlert.textContent.trim().toLowerCase();
+                if (text.includes('email') || text.includes('compte')) {
+                    const regErr = document.getElementById('reg-email-error');
+                    const logErr = document.getElementById('login-email-error');
+                    if (regErr && text.includes('existe déjà')) {
+                        regErr.textContent = 'Cette adresse e-mail est déjà utilisée.';
+                        regErr.style.display = 'block';
+                    } else if (logErr) {
+                        logErr.textContent = serverAlert.textContent.replace('⚠️', '').trim();
+                        logErr.style.display = 'block';
+                    }
+                } else if (text.includes('mot de passe') || text.includes('passe')) {
+                    const regErr = document.getElementById('reg-password-error');
+                    const logErr = document.getElementById('login-password-error');
+                    if (regErr && text.includes('10')) {
+                        regErr.textContent = 'Mot de passe trop court (10 caractères minimum requis).';
+                        regErr.style.display = 'block';
+                    } else if (logErr) {
+                        logErr.textContent = 'Mot de passe ou identifiant incorrect.';
+                        logErr.style.display = 'block';
+                    }
+                } else if (text.includes('pseudo')) {
+                    const nameErr = document.getElementById('reg-name-error');
+                    if (nameErr) {
+                        nameErr.textContent = 'Le pseudo doit comporter entre 2 et 30 caractères.';
+                        nameErr.style.display = 'block';
+                    }
+                }
+            }
+        });
+
+        function openForgotModal() {
+            alert('Pour réinitialiser votre mot de passe, contactez l’administrateur à spacedev@thegoat.com ou utilisez votre email de secours.');
         }
     </script>
     <% if (user) { %>
