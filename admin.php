@@ -1,0 +1,218 @@
+<?php
+require_once __DIR__ . '/includes/app.php';
+
+$user = mg_current_user();
+if (!$user) {
+    header('Location: account.php');
+    exit;
+}
+if ($user['role'] !== 'admin') {
+    http_response_code(403);
+    header('Location: account.php');
+    exit;
+}
+
+$db = mg_db();
+$summary = $db->query(
+    'SELECT
+        (SELECT COUNT(*) FROM users WHERE role = \'player\') AS players,
+        (SELECT COUNT(*) FROM users WHERE role = \'player\' AND last_seen_at >= ' . (time() - 90) . ') AS online,
+        (SELECT COUNT(*) FROM game_sessions) AS games,
+        (SELECT COUNT(*) FROM game_sessions WHERE completed_at IS NOT NULL) AS completed,
+        (SELECT COUNT(*) FROM game_sessions WHERE completed_at IS NULL AND started_at >= ' . (time() - 3600) . ') AS active_games,
+        (SELECT COUNT(*) FROM game_sessions WHERE mode = \'bot\') AS bot_games,
+        (SELECT COUNT(*) FROM bot_memory) AS trained_accounts'
+)->fetch();
+$botLevels = $db->query(
+    'SELECT bot_level, COUNT(*) AS games,
+        SUM(CASE WHEN result = \'O\' THEN 1 ELSE 0 END) AS bot_wins,
+        SUM(CASE WHEN result = \'X\' THEN 1 ELSE 0 END) AS player_wins,
+        SUM(CASE WHEN result = \'TIE\' THEN 1 ELSE 0 END) AS ties
+     FROM game_sessions
+     WHERE mode = \'bot\'
+     GROUP BY bot_level
+     ORDER BY games DESC'
+)->fetchAll();
+$players = $db->query(
+    'SELECT u.id, u.display_name, u.email, u.created_at, u.last_seen_at, u.is_banned,
+        COUNT(g.id) AS games,
+        COALESCE(b.learning_level, 0) AS learning_level,
+        COALESCE(b.games_learned, 0) AS games_learned
+     FROM users u
+     LEFT JOIN game_sessions g ON g.user_id = u.id
+     LEFT JOIN bot_memory b ON b.user_id = u.id
+     WHERE u.role = \'player\'
+     GROUP BY u.id
+     ORDER BY u.last_seen_at DESC, u.created_at DESC
+     LIMIT 100'
+)->fetchAll();
+?>
+<!DOCTYPE html>
+<html lang="fr" data-theme="red">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration - Multi-Games</title>
+    <link rel="stylesheet" href="assets/css/themes/themes.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <script src="assets/js/theme.js"></script>
+</head>
+<body>
+    <header class="topbar">
+        <a href="index.php" class="brand-wrapper">
+            <div class="brand-title">Multi-Games <span>Administration</span></div>
+        </a>
+        <div class="topbar-actions">
+            <span class="btn-topbar"><?= mg_escape($user['display_name']) ?></span>
+            <a class="btn-topbar" href="account.php">Mon compte</a>
+            <a class="btn-topbar" href="index.php">Retour aux jeux</a>
+            <form method="post" action="account.php" class="inline-form">
+                <input type="hidden" name="csrf_token" value="<?= mg_escape(mg_csrf_token()) ?>">
+                <input type="hidden" name="action" value="logout">
+                <button class="btn-topbar" type="submit">Déconnexion</button>
+            </form>
+        </div>
+    </header>
+
+    <main class="main-container admin-page">
+        <div class="admin-heading">
+            <div>
+                <div class="hub-tag">Panneau administrateur</div>
+                <h1 class="hub-title">Vue d’ensemble</h1>
+                <p class="hub-subtitle">Comptes, activité des joueurs, parties terminées et progression du bot.</p>
+            </div>
+            <button class="btn-primary-action admin-refresh" id="admin-refresh" type="button">Actualiser</button>
+        </div>
+
+        <section class="account-stat-grid admin-summary" aria-label="Statistiques générales">
+            <div class="account-stat"><strong data-stat="players"><?= (int)$summary['players'] ?></strong><span>Comptes joueurs</span></div>
+            <div class="account-stat"><strong data-stat="online"><?= (int)$summary['online'] ?></strong><span>Joueurs connectés</span></div>
+            <div class="account-stat"><strong data-stat="games"><?= (int)$summary['games'] ?></strong><span>Parties lancées</span></div>
+            <div class="account-stat"><strong data-stat="completed"><?= (int)$summary['completed'] ?></strong><span>Parties terminées</span></div>
+            <div class="account-stat"><strong data-stat="active_games"><?= (int)$summary['active_games'] ?></strong><span>En cours (dernière heure)</span></div>
+            <div class="account-stat"><strong data-stat="bot_games"><?= (int)$summary['bot_games'] ?></strong><span>Duels contre le bot</span></div>
+            <div class="account-stat"><strong data-stat="trained_accounts"><?= (int)$summary['trained_accounts'] ?></strong><span>Profils de bot entraînés</span></div>
+        </section>
+
+        <section class="admin-panel">
+            <div class="admin-section-heading">
+                <div>
+                    <h2>Activité du bot</h2>
+                    <p>Résultats par difficulté. X désigne le joueur, O le bot.</p>
+                </div>
+            </div>
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead><tr><th>Difficulté</th><th>Parties</th><th>Victoires du bot</th><th>Victoires joueur</th><th>Nuls</th></tr></thead>
+                    <tbody id="bot-level-rows">
+                    <?php if (!$botLevels): ?>
+                        <tr><td colspan="5" class="admin-empty">Aucune partie contre le bot pour le moment.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($botLevels as $row): ?>
+                            <tr>
+                                <td><?= mg_escape($row['bot_level'] ?: 'non précisé') ?></td>
+                                <td><?= (int)$row['games'] ?></td>
+                                <td><?= (int)$row['bot_wins'] ?></td>
+                                <td><?= (int)$row['player_wins'] ?></td>
+                                <td><?= (int)$row['ties'] ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="admin-panel">
+            <div class="admin-section-heading">
+                <div><h2>Modes les plus joués</h2><p>Répartition des parties enregistrées par mode de jeu.</p></div>
+            </div>
+            <div class="admin-table-wrap"><table class="admin-table">
+                <thead><tr><th>Mode</th><th>Parties</th></tr></thead>
+                <tbody id="popular-mode-rows"><tr><td colspan="2" class="admin-empty">Chargement…</td></tr></tbody>
+            </table></div>
+        </section>
+
+        <section class="admin-panel">
+            <div class="admin-section-heading">
+                <div>
+                    <h2>Joueurs</h2>
+                    <p>La présence est actualisée pendant la navigation et les parties.</p>
+                </div>
+            </div>
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead><tr><th>Statut</th><th>Pseudo</th><th>E-mail</th><th>Parties</th><th>Niveau appris</th><th>Parties apprises</th><th>Inscription</th><th>Actions</th></tr></thead>
+                    <tbody id="player-rows">
+                    <?php if (!$players): ?>
+                        <tr><td colspan="8" class="admin-empty">Aucun joueur inscrit.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($players as $player): ?>
+                            <tr>
+                                <td><span class="presence-dot <?= (int)$player['last_seen_at'] >= time() - 90 ? 'is-online' : '' ?>"></span><?= !empty($player['is_banned']) ? 'Banni' : ((int)$player['last_seen_at'] >= time() - 90 ? 'En ligne' : 'Hors ligne') ?></td>
+                                <td><?= mg_escape($player['display_name']) ?></td>
+                                <td><?= mg_escape($player['email']) ?></td>
+                                <td><?= (int)$player['games'] ?></td>
+                                <td><?= (int)$player['learning_level'] ?></td>
+                                <td><?= (int)$player['games_learned'] ?></td>
+                                <td><?= date('d/m/Y', (int)$player['created_at']) ?></td>
+                                <td><button class="admin-action-button" type="button">Chargement des actions…</button></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="admin-panel">
+            <div class="admin-section-heading">
+                <div><h2>Thèmes globaux</h2><p>Les thèmes personnalisés sont partagés par tous les joueurs.</p></div>
+            </div>
+            <form id="admin-theme-form" class="admin-management-form">
+                <label>Nom<input name="name" required maxlength="30"></label>
+                <label>Identifiant<input name="key" required pattern="[a-z][a-z0-9-]{1,24}" placeholder="mon-theme"></label>
+                <label>Couleur principale<input name="primary_color" type="color" value="#dc2626"></label>
+                <label>Arrière-plan<input name="background_color" type="color" value="#09090b"></label>
+                <button class="btn-primary-action" type="submit">Ajouter le thème</button>
+            </form>
+            <div class="admin-table-wrap"><table class="admin-table">
+                <thead><tr><th>Nom</th><th>Identifiant</th><th>Couleurs</th><th>Type</th><th>Action</th></tr></thead>
+                <tbody id="theme-rows"><tr><td colspan="5" class="admin-empty">Chargement…</td></tr></tbody>
+            </table></div>
+        </section>
+
+        <section class="admin-panel">
+            <div class="admin-section-heading">
+                <div><h2>Symboles personnalisés</h2><p>Ajoutez des emojis ou caractères disponibles dans les options de partie.</p></div>
+            </div>
+            <form id="admin-symbol-form" class="admin-management-form">
+                <label>Symbole<input name="symbol" required maxlength="8" placeholder="⭐"></label>
+                <label>Nom<input name="label" required maxlength="30" placeholder="Étoile"></label>
+                <button class="btn-primary-action" type="submit">Ajouter le symbole</button>
+            </form>
+            <div class="admin-table-wrap"><table class="admin-table">
+                <thead><tr><th>Symbole</th><th>Nom</th><th>Type</th><th>Action</th></tr></thead>
+                <tbody id="symbol-rows"><tr><td colspan="4" class="admin-empty">Chargement…</td></tr></tbody>
+            </table></div>
+        </section>
+
+        <section class="admin-panel">
+            <div class="admin-section-heading">
+                <div><h2>Salons Wi-Fi actifs</h2><p>Les salons inactifs sont automatiquement nettoyés après une heure.</p></div>
+            </div>
+            <div class="admin-table-wrap"><table class="admin-table">
+                <thead><tr><th>Code</th><th>État</th><th>Joueurs</th><th>Dernière activité</th><th>Action</th></tr></thead>
+                <tbody id="room-rows"><tr><td colspan="5" class="admin-empty">Chargement…</td></tr></tbody>
+            </table></div>
+        </section>
+    </main>
+    <footer class="footer">© 2026 Space &amp; Multi-Games · Tableau de bord administrateur</footer>
+    <script>
+        window.MG_ADMIN_API = 'games/morpion/api.php';
+        window.MG_CSRF = <?= json_encode(mg_csrf_token()) ?>;
+    </script>
+    <script src="assets/js/admin.js" defer></script>
+    <script src="assets/js/account-presence.js" data-api="games/morpion/api.php" defer></script>
+</body>
+</html>

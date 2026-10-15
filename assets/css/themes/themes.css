@@ -1,0 +1,174 @@
+/* ==========================================================================
+   Multi-Games : Palettes de thèmes (Design Épuré avec Trait de Victoire)
+   ========================================================================== */
+
+/* 1. THÈME PRINCIPAL : ROUGE & NOIR (SPACE) - PAR DÉFAUT */
+:root,
+[data-theme="red"],
+:root[data-theme="red"] {
+  --bg-main: #09090b;
+  --bg-gradient: radial-gradient(ellipse at 50% 0%, #1a080c 0%, #09090b 80%);
+  --card-bg: #131317;
+  --card-border: #27272a;
+  --card-hover-border: #dc2626;
+  --card-inner: #0d0d10;
+
+  --primary: #dc2626;
+  --primary-hover: #b91c1c;
+  --primary-glow: transparent;
+  --primary-text: #ffffff;
+
+  --secondary-bg: #1c1c22;
+  --secondary-border: #27272a;
+  --secondary-hover: #26262e;
+
+  --text-main: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --text-dim: #71717a;
+
+  --color-x: #ef4444;
+  --color-o: #f4f4f5;
+
+  --badge-bg: #1c1417;
+  --badge-text: #f87171;
+  --badge-border: #3f1a20;
+
+  --win-line: #ef4444;
+  --theme-color-preview: #dc2626;
+}
+
+/* 2. THÈME AMBRE / OR */
+[data-theme="amber"],
+:root[data-theme="amber"] {
+  --bg-main: #0c0e12;
+  --bg-gradient: radial-gradient(ellipse at 50% 0%, #1c1810 0%, #0c0e12 70%);
+  --card-bg: #131720;
+  --card-border: #262b38;
+  --card-hover-border: #d97706;
+  --card-inner: #0f1218;
+
+  --primary: #d97706;
+  --primary-hover: #b45309;
+  --primary-glow: transparent;
+  --primary-text: #ffffff;
+
+  --secondary-bg: #1c222e;
+  --secondary-border: #2a3242;
+  --secondary-hover: #262e3d;
+
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+
+  --color-x: #f59e0b;
+  --color-o: #38bdf8;
+
+  --badge-bg: #1d1912;
+  --badge-text: #fbbf24;
+  --badge-border: #3d311b;
+
+  --win-line: #f59e0b;
+  --theme-color-preview: #d97706;
+}
+
+/* 3. THÈME VIOLET */
+[data-theme="purple"],
+:root[data-theme="purple"] {
+  --bg-main: #090710;
+  --bg-gradient: radial-gradient(ellipse at 50% 0%, #1a102b 0%, #090710 70%);
+  --card-bg: #130f21;
+  --card-border: #281f3d;
+  --card-hover-border: #9333ea;
+  --card-inner: #0e0b1a;
+
+  --primary: #9333ea;
+  --primary-hover: #7e22ce;
+  --primary-glow: transparent;
+  --primary-text: #ffffff;
+
+  --secondary-bg: #1c162e;
+  --secondary-border: #2b2245;
+  --secondary-hover: #271f40;
+
+  --text-main: #faf5ff;
+  --text-muted: #c084fc;
+  --text-dim: #7e699b;
+
+  --color-x: #a855f7;
+  --color-o: #f472b6;
+
+  --badge-bg: #1c132b;
+  --badge-text: #c084fc;
+  --badge-border: #3b255c;
+
+  --win-line: #c084fc;
+  --theme-color-preview: #9333ea;
+}
+
+/* 4. THÈME CYAN / BLEU */
+[data-theme="cyan"],
+:root[data-theme="cyan"] {
+  --bg-main: #060e14;
+  --bg-gradient: radial-gradient(ellipse at 50% 0%, #0b1f2b 0%, #060e14 70%);
+  --card-bg: #0b1822;
+  --card-border: #182e3d;
+  --card-hover-border: #0891b2;
+  --card-inner: #07121b;
+
+  --primary: #0891b2;
+  --primary-hover: #0e7490;
+  --primary-glow: transparent;
+  --primary-text: #ffffff;
+
+  --secondary-bg: #122533;
+  --secondary-border: #1c3647;
+  --secondary-hover: #173245;
+
+  --text-main: #f0fdfa;
+  --text-muted: #67e8f9;
+  --text-dim: #477b8f;
+
+  --color-x: #06b6d4;
+  --color-o: #f43f5e;
+
+  --badge-bg: #0b2029;
+  --badge-text: #22d3ee;
+  --badge-border: #183e4f;
+
+  --win-line: #06b6d4;
+  --theme-color-preview: #0891b2;
+}
+
+/* 5. THÈME ÉMERAUDE */
+[data-theme="emerald"],
+:root[data-theme="emerald"] {
+  --bg-main: #05100b;
+  --bg-gradient: radial-gradient(ellipse at 50% 0%, #0a2117 0%, #05100b 70%);
+  --card-bg: #0b1d14;
+  --card-border: #193627;
+  --card-hover-border: #059669;
+  --card-inner: #07140e;
+
+  --primary: #059669;
+  --primary-hover: #047857;
+  --primary-glow: transparent;
+  --primary-text: #ffffff;
+
+  --secondary-bg: #122c1f;
+  --secondary-border: #1d422f;
+  --secondary-hover: #193d2b;
+
+  --text-main: #ecfdf5;
+  --text-muted: #6ee7b7;
+  --text-dim: #3d795d;
+
+  --color-x: #10b981;
+  --color-o: #f59e0b;
+
+  --badge-bg: #0c2117;
+  --badge-text: #34d399;
+  --badge-border: #17422d;
+
+  --win-line: #10b981;
+  --theme-color-preview: #059669;
+}
