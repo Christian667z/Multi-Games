@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="<%= currentTheme %>">
+<html lang="fr" data-theme="<?= e($currentTheme) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +8,7 @@
 
     <link rel="stylesheet" href="assets/css/themes/themes.css">
     <link rel="stylesheet" href="assets/css/base.css">
-    <style><%- customThemeCss %></style>
+    <style><?= $customThemeCss ?></style>
 
     <script src="assets/js/theme.js"></script>
     <script src="assets/js/audio.js" defer></script>
@@ -25,17 +25,17 @@
             <a class="btn-topbar" href="leaderboard.php">Classement 🏆</a>
             <a class="btn-topbar" href="space-core/">Space Core</a>
 
-            <% if (user && user.role === 'admin') { %>
+            <?php if ($user && $user["role"] === 'admin'): ?>
                 <a class="btn-topbar admin-btn" href="admin.php">Administration</a>
-            <% } %>
+            <?php endif; ?>
 
-            <% if (user) { %>
+            <?php if ($user): ?>
                 <form method="post" action="account.php" class="inline-form" style="margin: 0;">
-                    <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                    <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
                     <input type="hidden" name="action" value="logout">
                     <button class="btn-topbar" type="submit">Déconnexion</button>
                 </form>
-            <% } %>
+            <?php endif; ?>
 
             <button class="btn-topbar palette-btn" id="theme-palette-btn" title="Changer de thème">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -46,32 +46,32 @@
     </header>
 
     <main class="main-container account-page" style="padding-top: 1.5rem;">
-        <% if (error) { %>
-            <div class="account-alert" role="alert">⚠️ <%= error %></div>
-        <% } %>
-        <% if (success) { %>
-            <div class="account-success" role="status">✅ <%= success %></div>
-        <% } %>
+        <?php if ($error): ?>
+            <div class="account-alert" role="alert">⚠️ <?= e($error) ?></div>
+        <?php endif; ?>
+        <?php if ($success): ?>
+            <div class="account-success" role="status">✅ <?= e($success) ?></div>
+        <?php endif; ?>
 
-        <% if (user) { %>
+        <?php if ($user): ?>
             <div class="account-card" style="max-width: 1050px;">
                 <!-- En-tête profil -->
                 <div class="account-hero-header">
-                    <div class="account-avatar-large" id="current-user-avatar"><%= user.avatar || '🚀' %></div>
+                    <div class="account-avatar-large" id="current-user-avatar"><?= e($user["avatar"] ?: '🚀') ?></div>
                     <div class="account-hero-info">
                         <div class="account-hero-name">
-                            <span><%= user.display_name %></span>
-                            <% if (user.role === 'admin') { %>
+                            <span><?= e($user["display_name"]) ?></span>
+                            <?php if ($user["role"] === 'admin'): ?>
                                 <span style="font-size: 0.72rem; background: var(--badge-bg); color: var(--badge-text); border: 1px solid var(--badge-border); padding: 0.2rem 0.6rem; border-radius: 9999px;">ADMINISTRATEUR</span>
-                            <% } else { %>
+                            <?php else: ?>
                                 <span style="font-size: 0.72rem; background: rgba(255,255,255,0.08); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.12); padding: 0.2rem 0.6rem; border-radius: 9999px;">JOUEUR</span>
-                            <% } %>
-                            <span style="font-size: 0.78rem; background: rgba(250, 204, 21, 0.15); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.35); padding: 0.2rem 0.6rem; border-radius: 9999px;">Rang #<%= userRank %></span>
-                            <span style="font-size: 0.78rem; background: rgba(96, 165, 250, 0.15); color: #93c5fd; border: 1px solid rgba(96, 165, 250, 0.35); padding: 0.2rem 0.6rem; border-radius: 9999px;">Ratio V/D : <%= playerStats.ratio %></span>
+                            <?php endif; ?>
+                            <span style="font-size: 0.78rem; background: rgba(250, 204, 21, 0.15); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.35); padding: 0.2rem 0.6rem; border-radius: 9999px;">Rang #<?= e($userRank) ?></span>
+                            <span style="font-size: 0.78rem; background: rgba(96, 165, 250, 0.15); color: #93c5fd; border: 1px solid rgba(96, 165, 250, 0.35); padding: 0.2rem 0.6rem; border-radius: 9999px;">Ratio V/D : <?= e($playerStats["ratio"]) ?></span>
                         </div>
-                        <div class="account-hero-email"><%= user.email %></div>
+                        <div class="account-hero-email"><?= e($user["email"]) ?></div>
                         <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.3rem;">
-                            Membre depuis le <%= new Date(user.created_at * 1000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) %>
+                            Membre depuis le <?= e(date('j', (int) $user['created_at']) . ' ' . array('janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre')[(int) date('n', (int) $user['created_at']) - 1] . ' ' . date('Y', (int) $user['created_at'])) ?>
                         </div>
                     </div>
                     <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
@@ -90,7 +90,7 @@
                         <span>📊</span> Statistiques
                     </button>
                     <button class="account-tab-btn" data-tab="tab-history" role="tab" aria-selected="false">
-                        <span>📜</span> Historique des parties (<%= gameHistory.length %>)
+                        <span>📜</span> Historique des parties (<?= e(count($gameHistory)) ?>)
                     </button>
                     <button class="account-tab-btn" data-tab="tab-settings" role="tab" aria-selected="false">
                         <span>⚙️</span> Profil &amp; Sécurité
@@ -119,16 +119,16 @@
                     <div class="stats-header-banner">
                         <div class="hub-tag" style="margin: 0;">Performances &amp; Bilan Compétitif</div>
                         <div style="display: flex; gap: 0.6rem; align-items: center; font-size: 0.84rem;">
-                            <% if (playerStats.current_streak > 1) { %>
+                            <?php if ($playerStats["current_streak"] > 1): ?>
                                 <span style="background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); padding: 0.25rem 0.65rem; border-radius: 9999px; font-weight: 700;">
-                                    🔥 <%= playerStats.current_streak %> Victoires d'affilée
+                                    🔥 <?= e($playerStats["current_streak"]) ?> Victoires d'affilée
                                 </span>
-                            <% } %>
-                            <% if (playerStats.best_streak > 1) { %>
+                            <?php endif; ?>
+                            <?php if ($playerStats["best_streak"] > 1): ?>
                                 <span style="background: rgba(250, 204, 21, 0.15); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.3); padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.8rem;">
-                                    ⚡ Record : <%= playerStats.best_streak %> d'affilée
+                                    ⚡ Record : <?= e($playerStats["best_streak"]) ?> d'affilée
                                 </span>
-                            <% } %>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -140,7 +140,7 @@
                                 <span class="stat-kpi-title">Victoires</span>
                                 <span class="stat-kpi-icon">🏆</span>
                             </div>
-                            <div class="stat-kpi-number" id="kpi-val-wins"><%= playerStats.wins %></div>
+                            <div class="stat-kpi-number" id="kpi-val-wins"><?= e($playerStats["wins"]) ?></div>
                             <div class="stat-kpi-sub">
                                 <span>Total des victoires remportées</span>
                             </div>
@@ -152,7 +152,7 @@
                                 <span class="stat-kpi-title">Défaites</span>
                                 <span class="stat-kpi-icon">❌</span>
                             </div>
-                            <div class="stat-kpi-number" id="kpi-val-losses"><%= playerStats.losses %></div>
+                            <div class="stat-kpi-number" id="kpi-val-losses"><?= e($playerStats["losses"]) ?></div>
                             <div class="stat-kpi-sub">
                                 <span>Parties concédées</span>
                             </div>
@@ -164,20 +164,20 @@
                                 <span class="stat-kpi-title" style="color: #93c5fd;">Ratio V / D</span>
                                 <span class="stat-kpi-icon">⚖️</span>
                             </div>
-                            <div class="stat-kpi-number" id="kpi-val-ratio"><%= playerStats.ratio %></div>
+                            <div class="stat-kpi-number" id="kpi-val-ratio"><?= e($playerStats["ratio"]) ?></div>
                             <div class="stat-kpi-sub">
-                                <% const rNum = parseFloat(playerStats.ratio) || 0; %>
-                                <% if (playerStats.losses === 0 && playerStats.wins > 0) { %>
+                                <?php $rNum = (float)($playerStats['ratio'] ?? 0); ?>
+                                <?php if ($playerStats["losses"] === 0 && $playerStats["wins"] > 0): ?>
                                     <span style="color: #34d399; font-weight: 700;">Invaincu (0 défaite)</span>
-                                <% } else if (rNum >= 2.0) { %>
+                                <?php elseif ($rNum >= 2.0): ?>
                                     <span style="color: #60a5fa; font-weight: 700;">Excellente domination 🔥</span>
-                                <% } else if (rNum >= 1.0) { %>
+                                <?php elseif ($rNum >= 1.0): ?>
                                     <span style="color: #34d399; font-weight: 700;">Ratio positif ⚡</span>
-                                <% } else if (playerStats.completed > 0) { %>
+                                <?php elseif ($playerStats["completed"] > 0): ?>
                                     <span style="color: #fbbf24; font-weight: 700;">En progression 🎯</span>
-                                <% } else { %>
+                                <?php else: ?>
                                     <span>Aucune partie terminée</span>
-                                <% } %>
+                                <?php endif; ?>
                             </div>
                         </div>
 
@@ -187,9 +187,9 @@
                                 <span class="stat-kpi-title">Taux de Victoire</span>
                                 <span class="stat-kpi-icon">🎯</span>
                             </div>
-                            <div class="stat-kpi-number" id="kpi-val-winrate"><%= playerStats.win_rate %>%</div>
+                            <div class="stat-kpi-number" id="kpi-val-winrate"><?= e($playerStats["win_rate"]) ?>%</div>
                             <div class="stat-kpi-sub">
-                                <span>Sur <%= playerStats.wins + playerStats.losses + playerStats.ties %> parties jouées</span>
+                                <span>Sur <?= e($playerStats["wins"] + $playerStats["losses"] + $playerStats["ties"]) ?> parties jouées</span>
                             </div>
                         </div>
 
@@ -199,7 +199,7 @@
                                 <span class="stat-kpi-title">Matchs Nuls</span>
                                 <span class="stat-kpi-icon">🤝</span>
                             </div>
-                            <div class="stat-kpi-number" style="color: #fbbf24;" id="kpi-val-ties"><%= playerStats.ties %></div>
+                            <div class="stat-kpi-number" style="color: #fbbf24;" id="kpi-val-ties"><?= e($playerStats["ties"]) ?></div>
                             <div class="stat-kpi-sub">
                                 <span>Égalités parfaites</span>
                             </div>
@@ -211,7 +211,7 @@
                                 <span class="stat-kpi-title">Points Classement</span>
                                 <span class="stat-kpi-icon">🎖️</span>
                             </div>
-                            <div class="stat-kpi-number" style="color: var(--primary);"><%= playerStats.points %></div>
+                            <div class="stat-kpi-number" style="color: var(--primary);"><?= e($playerStats["points"]) ?></div>
                             <div class="stat-kpi-sub">
                                 <span>3 pts / Victoire, 1 pt / Nul</span>
                             </div>
@@ -219,46 +219,41 @@
                     </div>
 
                     <!-- 2. BARRE VISUELLE DU RATIO ET RÉPARTITION DES RÉSULTATS -->
-                    <% 
-                        const totalFinishedGames = playerStats.wins + playerStats.losses + playerStats.ties;
-                        const pctWins = totalFinishedGames > 0 ? Math.round((playerStats.wins / totalFinishedGames) * 100) : 0;
-                        const pctTies = totalFinishedGames > 0 ? Math.round((playerStats.ties / totalFinishedGames) * 100) : 0;
-                        const pctLosses = totalFinishedGames > 0 ? (100 - pctWins - pctTies) : 0;
-                    %>
+                    <?php $totalFinishedGames = $playerStats['wins'] + $playerStats['losses'] + $playerStats['ties']; $pctWins = $totalFinishedGames > 0 ? round(($playerStats['wins'] / $totalFinishedGames) * 100) : 0; $pctTies = $totalFinishedGames > 0 ? round(($playerStats['ties'] / $totalFinishedGames) * 100) : 0; $pctLosses = $totalFinishedGames > 0 ? (100 - $pctWins - $pctTies) : 0; ?>
                     <div class="ratio-bar-card">
                         <div class="ratio-bar-header">
                             <div class="ratio-bar-title">
                                 <span>📊</span> Répartition Globale des Résultats
                             </div>
                             <div style="font-size: 0.82rem; color: var(--text-muted);">
-                                <strong><%= totalFinishedGames %></strong> parties terminées au total
+                                <strong><?= e($totalFinishedGames) ?></strong> parties terminées au total
                             </div>
                         </div>
 
                         <!-- Piste segmentée -->
-                        <div class="ratio-bar-track" title="Victoires: <%= pctWins %>% | Nuls: <%= pctTies %>% | Défaites: <%= pctLosses %>%">
-                            <% if (totalFinishedGames === 0) { %>
+                        <div class="ratio-bar-track" title="Victoires: <?= e($pctWins) ?>% | Nuls: <?= e($pctTies) ?>% | Défaites: <?= e($pctLosses) ?>%">
+                            <?php if ($totalFinishedGames === 0): ?>
                                 <div style="width: 100%; height: 100%; background: rgba(255,255,255,0.08);"></div>
-                            <% } else { %>
-                                <div class="ratio-seg-wins" style="width: <%= pctWins %>%;"></div>
-                                <div class="ratio-seg-ties" style="width: <%= pctTies %>%;"></div>
-                                <div class="ratio-seg-losses" style="width: <%= pctLosses %>%;"></div>
-                            <% } %>
+                            <?php else: ?>
+                                <div class="ratio-seg-wins" style="width: <?= e($pctWins) ?>%;"></div>
+                                <div class="ratio-seg-ties" style="width: <?= e($pctTies) ?>%;"></div>
+                                <div class="ratio-seg-losses" style="width: <?= e($pctLosses) ?>%;"></div>
+                            <?php endif; ?>
                         </div>
 
                         <!-- Légende détaillée -->
                         <div class="ratio-bar-legend">
                             <div class="ratio-legend-item">
                                 <span class="ratio-dot wins"></span>
-                                <span>Victoires : <strong style="color: #34d399;"><%= playerStats.wins %></strong> (<%= pctWins %>%)</span>
+                                <span>Victoires : <strong style="color: #34d399;"><?= e($playerStats["wins"]) ?></strong> (<?= e($pctWins) ?>%)</span>
                             </div>
                             <div class="ratio-legend-item">
                                 <span class="ratio-dot ties"></span>
-                                <span>Matchs nuls : <strong style="color: #fbbf24;"><%= playerStats.ties %></strong> (<%= pctTies %>%)</span>
+                                <span>Matchs nuls : <strong style="color: #fbbf24;"><?= e($playerStats["ties"]) ?></strong> (<?= e($pctTies) ?>%)</span>
                             </div>
                             <div class="ratio-legend-item">
                                 <span class="ratio-dot losses"></span>
-                                <span>Défaites : <strong style="color: #f87171;"><%= playerStats.losses %></strong> (<%= pctLosses %>%)</span>
+                                <span>Défaites : <strong style="color: #f87171;"><?= e($playerStats["losses"]) ?></strong> (<?= e($pctLosses) ?>%)</span>
                             </div>
                         </div>
                     </div>
@@ -276,27 +271,27 @@
                             <div style="display: flex; flex-direction: column; gap: 0.55rem;">
                                 <div class="mode-stat-row">
                                     <span>Ratio V / D</span>
-                                    <strong style="color: #60a5fa;"><%= playerStats.modes?.bot?.ratio || '0.00' %></strong>
+                                    <strong style="color: #60a5fa;"><?= e($playerStats["modes"]["bot"]["ratio"] ?? '0.00') ?></strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Victoires</span>
-                                    <strong style="color: #34d399;"><%= playerStats.modes?.bot?.wins || 0 %></strong>
+                                    <strong style="color: #34d399;"><?= e($playerStats["modes"]["bot"]["wins"] ?? 0) ?></strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Défaites</span>
-                                    <strong style="color: #f87171;"><%= playerStats.modes?.bot?.losses || 0 %></strong>
+                                    <strong style="color: #f87171;"><?= e($playerStats["modes"]["bot"]["losses"] ?? 0) ?></strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Matchs nuls</span>
-                                    <strong style="color: #fbbf24;"><%= playerStats.modes?.bot?.ties || 0 %></strong>
+                                    <strong style="color: #fbbf24;"><?= e($playerStats["modes"]["bot"]["ties"] ?? 0) ?></strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Taux de réussite</span>
-                                    <strong style="color: #facc15;"><%= playerStats.modes?.bot?.win_rate || 0 %>%</strong>
+                                    <strong style="color: #facc15;"><?= e($playerStats["modes"]["bot"]["win_rate"] ?? 0) ?>%</strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Parties lancées</span>
-                                    <strong><%= playerStats.bot_games %></strong>
+                                    <strong><?= e($playerStats["bot_games"]) ?></strong>
                                 </div>
                             </div>
                         </div>
@@ -312,27 +307,27 @@
                             <div style="display: flex; flex-direction: column; gap: 0.55rem;">
                                 <div class="mode-stat-row">
                                     <span>Ratio V / D</span>
-                                    <strong style="color: #60a5fa;"><%= playerStats.modes?.wifi?.ratio || '0.00' %></strong>
+                                    <strong style="color: #60a5fa;"><?= e($playerStats["modes"]["wifi"]["ratio"] ?? '0.00') ?></strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Victoires</span>
-                                    <strong style="color: #34d399;"><%= playerStats.modes?.wifi?.wins || 0 %></strong>
+                                    <strong style="color: #34d399;"><?= e($playerStats["modes"]["wifi"]["wins"] ?? 0) ?></strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Défaites</span>
-                                    <strong style="color: #f87171;"><%= playerStats.modes?.wifi?.losses || 0 %></strong>
+                                    <strong style="color: #f87171;"><?= e($playerStats["modes"]["wifi"]["losses"] ?? 0) ?></strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Matchs nuls</span>
-                                    <strong style="color: #fbbf24;"><%= playerStats.modes?.wifi?.ties || 0 %></strong>
+                                    <strong style="color: #fbbf24;"><?= e($playerStats["modes"]["wifi"]["ties"] ?? 0) ?></strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Taux de réussite</span>
-                                    <strong style="color: #facc15;"><%= playerStats.modes?.wifi?.win_rate || 0 %>%</strong>
+                                    <strong style="color: #facc15;"><?= e($playerStats["modes"]["wifi"]["win_rate"] ?? 0) ?>%</strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Parties lancées</span>
-                                    <strong><%= playerStats.wifi_games %></strong>
+                                    <strong><?= e($playerStats["wifi_games"]) ?></strong>
                                 </div>
                             </div>
                         </div>
@@ -348,27 +343,27 @@
                             <div style="display: flex; flex-direction: column; gap: 0.55rem;">
                                 <div class="mode-stat-row">
                                     <span>Ratio V / D</span>
-                                    <strong style="color: #60a5fa;"><%= playerStats.modes?.local?.ratio || '0.00' %></strong>
+                                    <strong style="color: #60a5fa;"><?= e($playerStats["modes"]["local"]["ratio"] ?? '0.00') ?></strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Victoires</span>
-                                    <strong style="color: #34d399;"><%= playerStats.modes?.local?.wins || 0 %></strong>
+                                    <strong style="color: #34d399;"><?= e($playerStats["modes"]["local"]["wins"] ?? 0) ?></strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Défaites</span>
-                                    <strong style="color: #f87171;"><%= playerStats.modes?.local?.losses || 0 %></strong>
+                                    <strong style="color: #f87171;"><?= e($playerStats["modes"]["local"]["losses"] ?? 0) ?></strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Matchs nuls</span>
-                                    <strong style="color: #fbbf24;"><%= playerStats.modes?.local?.ties || 0 %></strong>
+                                    <strong style="color: #fbbf24;"><?= e($playerStats["modes"]["local"]["ties"] ?? 0) ?></strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Taux de réussite</span>
-                                    <strong style="color: #facc15;"><%= playerStats.modes?.local?.win_rate || 0 %>%</strong>
+                                    <strong style="color: #facc15;"><?= e($playerStats["modes"]["local"]["win_rate"] ?? 0) ?>%</strong>
                                 </div>
                                 <div class="mode-stat-row">
                                     <span>Parties lancées</span>
-                                    <strong><%= playerStats.local_games %></strong>
+                                    <strong><?= e($playerStats["local_games"]) ?></strong>
                                 </div>
                             </div>
                         </div>
@@ -380,37 +375,29 @@
                             <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin: 0;">
                                 🧬 Détail des Affrontements par Niveau de Difficulté
                             </h3>
-                            <span style="font-size: 0.8rem; color: var(--text-dim);">Mémoire d'IA : <%= botStats.games_learned %> parties apprises</span>
+                            <span style="font-size: 0.8rem; color: var(--text-dim);">Mémoire d'IA : <?= e($botStats["games_learned"]) ?> parties apprises</span>
                         </div>
 
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.9rem;">
-                            <% 
-                                const levelsMeta = [
-                                    { key: 'novice', label: 'Novice', emoji: '🐣', color: '#34d399' },
-                                    { key: 'medium', label: 'Intermédiaire', emoji: '🤖', color: '#60a5fa' },
-                                    { key: 'advanced', label: 'Avancé', emoji: '🧠', color: '#a78bfa' },
-                                    { key: 'legend', label: 'Légende', emoji: '👑', color: '#facc15' },
-                                    { key: 'adaptive', label: 'Évolutif', emoji: '🧬', color: '#f43f5e' },
-                                ];
-                            %>
-                            <% levelsMeta.forEach(function(lvl) { %>
-                                <% const bStat = playerStats.bot_level_breakdown?.[lvl.key] || { wins: 0, losses: 0, ties: 0, ratio: '0.00', win_rate: 0 }; %>
+                            <?php $levelsMeta = [['key'=>'novice','label'=>'Novice','emoji'=>'??','color'=>'#34d399'],['key'=>'medium','label'=>'Interm?diaire','emoji'=>'??','color'=>'#60a5fa'],['key'=>'advanced','label'=>'Avanc?','emoji'=>'??','color'=>'#a78bfa'],['key'=>'legend','label'=>'L?gende','emoji'=>'??','color'=>'#facc15'],['key'=>'adaptive','label'=>'?volutif','emoji'=>'??','color'=>'#f43f5e']]; ?>
+                            <?php foreach ($levelsMeta as $lvl): ?>
+                                <?php $bStat = $playerStats['bot_level_breakdown'][$lvl['key']] ?? ['wins'=>0,'losses'=>0,'ties'=>0,'ratio'=>'0.00','win_rate'=>0]; ?>
                                 <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 0.75rem; padding: 0.85rem;">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-                                        <span style="font-weight: 700; font-size: 0.88rem; color: <%= lvl.color %>;"><%= lvl.emoji %> <%= lvl.label %></span>
-                                        <span style="font-size: 0.75rem; color: var(--text-dim);">Ratio <%= bStat.ratio %></span>
+                                        <span style="font-weight: 700; font-size: 0.88rem; color: <?= e($lvl["color"]) ?>;"><?= e($lvl["emoji"]) ?> <?= e($lvl["label"]) ?></span>
+                                        <span style="font-size: 0.75rem; color: var(--text-dim);">Ratio <?= e($bStat["ratio"]) ?></span>
                                     </div>
                                     <div style="font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 800; color: #fff; margin-bottom: 0.2rem;">
-                                        <span style="color: #34d399;"><%= bStat.wins %>V</span> - <span style="color: #f87171;"><%= bStat.losses %>D</span>
-                                        <% if (bStat.ties > 0) { %>
-                                            - <span style="color: #fbbf24;"><%= bStat.ties %>N</span>
-                                        <% } %>
+                                        <span style="color: #34d399;"><?= e($bStat["wins"]) ?>V</span> - <span style="color: #f87171;"><?= e($bStat["losses"]) ?>D</span>
+                                        <?php if ($bStat["ties"] > 0): ?>
+                                            - <span style="color: #fbbf24;"><?= e($bStat["ties"]) ?>N</span>
+                                        <?php endif; ?>
                                     </div>
                                     <div style="font-size: 0.76rem; color: var(--text-muted);">
-                                        <%= bStat.win_rate %>% de victoires
+                                        <?= e($bStat["win_rate"]) ?>% de victoires
                                     </div>
                                 </div>
-                            <% }); %>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                 </div>
@@ -419,17 +406,17 @@
                 <div class="account-tab-content" id="tab-history">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
                         <div class="hub-tag" style="margin: 0;">Journal des dernières confrontations</div>
-                        <span style="font-size: 0.82rem; color: var(--text-muted);"><%= gameHistory.length %> parties enregistrées</span>
+                        <span style="font-size: 0.82rem; color: var(--text-muted);"><?= e(count($gameHistory)) ?> parties enregistrées</span>
                     </div>
 
-                    <% if (gameHistory.length === 0) { %>
+                    <?php if (count($gameHistory) === 0): ?>
                         <div style="text-align: center; padding: 3rem 1rem; background: var(--card-inner); border-radius: 1rem; border: 1px solid var(--card-border);">
                             <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🎲</div>
                             <h3 style="color: #fff; font-weight: 700; margin-bottom: 0.4rem;">Aucune partie enregistrée</h3>
                             <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">Lancez une partie en local, contre l'IA ou en Wi-Fi pour commencer votre historique.</p>
                             <a href="games/morpion/index.php" class="btn-primary-action" style="width: auto; margin: 0 auto; padding: 0.6rem 1.5rem;">Jouer maintenant</a>
                         </div>
-                    <% } else { %>
+                    <?php else: ?>
                         <div class="history-table-wrapper">
                             <table class="history-table">
                                 <thead>
@@ -442,31 +429,31 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <% gameHistory.forEach(function(game) { %>
+                                    <?php foreach ($gameHistory as $game): ?>
                                         <tr>
                                             <td style="color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; white-space: nowrap;">
-                                                <%= game.formatted_date %>
+                                                <?= e($game["formatted_date"]) ?>
                                             </td>
                                             <td>
-                                                <strong><%= game.modeName %></strong>
+                                                <strong><?= e($game["modeName"]) ?></strong>
                                             </td>
                                             <td style="color: var(--text-muted);">
-                                                <%= game.grid_desc %>
+                                                <?= e($game["grid_desc"]) ?>
                                             </td>
                                             <td style="text-align: center;">
-                                                <span class="badge-outcome <%= game.outcomeBadge %>">
-                                                    <%= game.outcomeLabel %>
+                                                <span class="badge-outcome <?= e($game["outcomeBadge"]) ?>">
+                                                    <?= e($game["outcomeLabel"]) ?>
                                                 </span>
                                             </td>
                                             <td style="text-align: right; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 0.82rem;">
-                                                <%= game.duration ? game.duration + 's' : '—' %>
+                                                <?= e($game["duration"] ? $game["duration"] . 's' : '—') ?>
                                             </td>
                                         </tr>
-                                    <% }); %>
+                                    <?php endforeach; ?>
                                 </tbody>
                             </table>
                         </div>
-                    <% } %>
+                    <?php endif; ?>
                 </div>
 
                 <!-- CONTENU ONGLET 3 : PARAMÈTRES DU COMPTE -->
@@ -479,16 +466,16 @@
                             <h3 class="card-title" style="font-size: 1.15rem;">Changer d'Avatar</h3>
                             <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Choisissez l'icône qui vous représentera dans les parties et au classement.</p>
                             <form method="post" action="account.php">
-                                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                                <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
                                 <input type="hidden" name="action" value="update_avatar">
 
                                 <div class="avatar-grid">
-                                    <% availableAvatars.forEach(function(av) { %>
-                                        <label class="avatar <%= (user.avatar || '🚀') === av ? 'active' : '' %>" title="Choisir <%= av %>">
-                                            <input type="radio" name="avatar" value="<%= av %>" <%= (user.avatar || '🚀') === av ? 'checked' : '' %> onchange="document.getElementById('current-user-avatar').textContent = this.value;">
-                                            <span><%= av %></span>
+                                    <?php foreach ($availableAvatars as $av): ?>
+                                        <label class="avatar <?= e(($user["avatar"] ?: '🚀') === $av ? 'active' : '') ?>" title="Choisir <?= e($av) ?>">
+                                            <input type="radio" name="avatar" value="<?= e($av) ?>" <?= e(($user["avatar"] ?: '🚀') === $av ? 'checked' : '') ?> onchange="document.getElementById('current-user-avatar').textContent = this.value;">
+                                            <span><?= e($av) ?></span>
                                         </label>
-                                    <% }); %>
+                                    <?php endforeach; ?>
                                 </div>
                                 <button class="btn-primary-action" type="submit" style="margin-top: 0.5rem;">Enregistrer l'avatar</button>
                             </form>
@@ -499,10 +486,10 @@
                             <h3 class="card-title" style="font-size: 1.15rem;">Modifier le Pseudo</h3>
                             <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Visible par les autres joueurs en ligne et sur le podium.</p>
                             <form method="post" action="account.php">
-                                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                                <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
                                 <input type="hidden" name="action" value="update_profile">
                                 <label for="update-name">Nouveau pseudo (2 à 30 caractères)</label>
-                                <input id="update-name" name="display_name" type="text" value="<%= user.display_name %>" required minlength="2" maxlength="30" autocomplete="nickname" placeholder="Votre nouveau pseudo">
+                                <input id="update-name" name="display_name" type="text" value="<?= e($user["display_name"]) ?>" required minlength="2" maxlength="30" autocomplete="nickname" placeholder="Votre nouveau pseudo">
                                 <button class="btn-primary-action" type="submit">Sauvegarder le pseudo</button>
                             </form>
                         </div>
@@ -512,10 +499,10 @@
                             <h3 class="card-title" style="font-size: 1.15rem;">Modifier l'Adresse E-mail</h3>
                             <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Utilisée pour vous connecter à votre compte Multi-Games.</p>
                             <form method="post" action="account.php">
-                                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                                <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
                                 <input type="hidden" name="action" value="update_email">
                                 <label for="update-email">Nouvelle adresse e-mail</label>
-                                <input id="update-email" name="email" type="email" value="<%= user.email %>" required maxlength="190" autocomplete="email" placeholder="votre.email@exemple.com">
+                                <input id="update-email" name="email" type="email" value="<?= e($user["email"]) ?>" required maxlength="190" autocomplete="email" placeholder="votre.email@exemple.com">
                                 <button class="btn-primary-action" type="submit">Sauvegarder l'e-mail</button>
                             </form>
                         </div>
@@ -525,7 +512,7 @@
                             <h3 class="card-title" style="font-size: 1.15rem;">Changer de Mot de Passe</h3>
                             <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Sécurisez votre compte avec un mot de passe robuste.</p>
                             <form method="post" action="account.php">
-                                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                                <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
                                 <input type="hidden" name="action" value="update_password">
 
                                 <label for="current-password">Mot de passe actuel</label>
@@ -559,15 +546,15 @@
                             <h3 class="card-title" style="font-size: 1.15rem;">Thème Visuel du Compte</h3>
                             <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Définissez votre palette de couleurs favorite par défaut.</p>
                             <form method="post" action="account.php">
-                                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                                <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
                                 <input type="hidden" name="action" value="update_theme">
                                 <label for="account-theme-select">Palette de couleurs :</label>
                                 <select id="account-theme-select" name="theme_key" class="theme-selector-select" style="width: 100%; padding: 0.8rem; border-radius: 0.65rem;" onchange="window.setSpecificTheme(this.value)">
-                                    <% gameThemes.forEach(function(theme) { %>
-                                        <option value="<%= theme.theme_key %>" <%= (user.theme_preference || currentTheme) === theme.theme_key ? 'selected' : '' %>>
-                                            <%= theme.name %>
+                                    <?php foreach ($gameThemes as $theme): ?>
+                                        <option value="<?= e($theme["theme_key"]) ?>" <?= e(($user["theme_preference"] ?: $currentTheme) === $theme["theme_key"] ? 'selected' : '') ?>>
+                                            <?= e($theme["name"]) ?>
                                         </option>
-                                    <% }); %>
+                                    <?php endforeach; ?>
                                 </select>
                                 <button class="btn-primary-action" type="submit" style="margin-top: 0.8rem;">Enregistrer comme favori</button>
                             </form>
@@ -597,44 +584,44 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <% leaderboard.forEach(function(entry) { %>
-                                    <tr class="<%= user.id === entry.id ? 'leaderboard-row-me' : '' %>">
+                                <?php foreach ($leaderboard as $entry): ?>
+                                    <tr class="<?= e($user["id"] === $entry["id"] ? 'leaderboard-row-me' : '') ?>">
                                         <td class="leaderboard-rank-col">
-                                            <% if (entry.rank === 1) { %>🥇
-                                            <% } else if (entry.rank === 2) { %>🥈
-                                            <% } else if (entry.rank === 3) { %>🥉
-                                            <% } else { %>#<%= entry.rank %><% } %>
+                                            <?php if ($entry["rank"] === 1): ?>🥇
+                                            <?php elseif ($entry["rank"] === 2): ?>🥈
+                                            <?php elseif ($entry["rank"] === 3): ?>🥉
+                                            <?php else: ?>#<?= e($entry["rank"]) ?><?php endif; ?>
                                         </td>
                                         <td>
                                             <div style="display: flex; align-items: center;">
-                                                <span class="user-inline-avatar"><%= entry.avatar %></span>
-                                                <strong><%= entry.display_name %></strong>
-                                                <% if (user.id === entry.id) { %>
+                                                <span class="user-inline-avatar"><?= e($entry["avatar"]) ?></span>
+                                                <strong><?= e($entry["display_name"]) ?></strong>
+                                                <?php if ($user["id"] === $entry["id"]): ?>
                                                     <span style="font-size: 0.68rem; background: rgba(52, 211, 153, 0.2); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.35); padding: 0.15rem 0.45rem; border-radius: 9999px; margin-left: 0.5rem;">VOUS</span>
-                                                <% } %>
+                                                <?php endif; ?>
                                             </div>
                                         </td>
                                         <td style="text-align: center; font-family: 'JetBrains Mono', monospace; font-weight: 800; color: var(--primary);">
-                                            <%= entry.points %>
+                                            <?= e($entry["points"]) ?>
                                         </td>
                                         <td style="text-align: center; font-weight: 700; color: #34d399;">
-                                            <%= entry.wins %>
+                                            <?= e($entry["wins"]) ?>
                                         </td>
                                         <td style="text-align: center; color: #f87171;">
-                                            <%= entry.losses %>
+                                            <?= e($entry["losses"]) ?>
                                         </td>
                                         <td style="text-align: center; font-weight: 700;">
-                                            <span style="color: #60a5fa;"><%= entry.ratio || '0.00' %></span>
-                                            <div style="font-size: 0.72rem; color: var(--text-dim); font-weight: 500;"><%= entry.win_rate %>%</div>
+                                            <span style="color: #60a5fa;"><?= e($entry["ratio"] ?: '0.00') ?></span>
+                                            <div style="font-size: 0.72rem; color: var(--text-dim); font-weight: 500;"><?= e($entry["win_rate"]) ?>%</div>
                                         </td>
                                     </tr>
-                                <% }); %>
+                                <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
-        <% } else { %>
+        <?php else: ?>
             <!-- Utilisateur non connecté : Formulaires Connexion et Inscription Équilibrés -->
             <section class="account-card" style="max-width: 980px;">
                 <div class="hub-tag">Espace Joueur</div>
@@ -647,7 +634,7 @@
                     <form method="post" action="account.php" class="account-form" id="login-form">
                         <h2 class="card-title">Se connecter</h2>
 
-                        <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                        <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
                         <input type="hidden" name="action" value="login">
 
                         <label for="login-email">Adresse e-mail</label>
@@ -702,7 +689,7 @@
                     <!-- Formulaire d'Inscription -->
                     <form method="post" action="account.php" class="account-form" id="register-form">
                         <h2 class="card-title">Créer un compte</h2>
-                        <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                        <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
                         <input type="hidden" name="action" value="register">
 
                         <label for="register-name">Pseudo joueur</label>
@@ -727,12 +714,12 @@
                         <label style="margin-top: 0.2rem; display: block;">Choisissez votre avatar :</label>
                         <!-- Grille responsive avec boutons radio (un seul choix actif, pas de débordement) -->
                         <div class="avatar-grid" id="reg-avatar-grid">
-                            <% availableAvatars.forEach(function(av, idx) { %>
-                                <label class="avatar <%= idx === 0 ? 'active' : '' %>" title="Avatar <%= av %>">
-                                    <input type="radio" name="avatar" value="<%= av %>" <%= idx === 0 ? 'checked' : '' %>>
-                                    <span><%= av %></span>
+                            <?php foreach ($availableAvatars as $idx => $av): ?>
+                                <label class="avatar <?= e($idx === 0 ? 'active' : '') ?>" title="Avatar <?= e($av) ?>">
+                                    <input type="radio" name="avatar" value="<?= e($av) ?>" <?= e($idx === 0 ? 'checked' : '') ?>>
+                                    <span><?= e($av) ?></span>
                                 </label>
-                            <% }); %>
+                            <?php endforeach; ?>
                         </div>
 
                         <button class="btn-primary-action" type="submit" style="margin-top: 0.5rem;">
@@ -741,7 +728,7 @@
                     </form>
                 </div>
             </section>
-        <% } %>
+        <?php endif; ?>
     </main>
 
     <footer class="footer">© 2026 Space &amp; Multi-Games</footer>
@@ -888,8 +875,8 @@
             const w = parseInt(localStorage.getItem('mg_stat_wins') || '0', 10);
             const l = parseInt(localStorage.getItem('mg_stat_losses') || '0', 10);
             const t = parseInt(localStorage.getItem('mg_stat_ties') || '0', 10);
-            const serverWins = <%= playerStats.wins || 0 %>;
-            const serverLosses = <%= playerStats.losses || 0 %>;
+            const serverWins = <?= e($playerStats["wins"] ?: 0) ?>;
+            const serverLosses = <?= e($playerStats["losses"] ?: 0) ?>;
 
             if (w > serverWins || l > serverLosses) {
                 const banner = document.getElementById('local-sync-banner');
@@ -933,14 +920,14 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            <% if (user) { %>
+            <?php if ($user): ?>
                 checkLocalStats();
-            <% } %>
+            <?php endif; ?>
         });
     </script>
-    <% if (user) { %>
-        <script>window.MG_CSRF = <%- JSON.stringify(csrfToken) %>;</script>
+    <?php if ($user): ?>
+        <script>window.MG_CSRF = <?= js_json($csrfToken) ?>;</script>
         <script src="assets/js/account-presence.js" data-api="games/morpion/api.php" defer></script>
-    <% } %>
+    <?php endif; ?>
 </body>
 </html>

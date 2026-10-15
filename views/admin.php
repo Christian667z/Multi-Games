@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="<%= currentTheme %>">
+<html lang="fr" data-theme="<?= e($currentTheme) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Administration - Multi-Games</title>
     <link rel="stylesheet" href="assets/css/themes/themes.css">
     <link rel="stylesheet" href="assets/css/base.css">
-    <style><%- customThemeCss %></style>
+    <style><?= $customThemeCss ?></style>
     <script src="assets/js/theme.js"></script>
 </head>
 <body>
@@ -15,12 +15,12 @@
             <div class="brand-title">Multi-Games <span>Administration</span></div>
         </a>
         <div class="topbar-actions">
-            <span class="btn-topbar">👑 <%= user.display_name %></span>
+            <span class="btn-topbar">👑 <?= e($user["display_name"]) ?></span>
             <a class="btn-topbar" href="leaderboard.php">Classement 🏆</a>
             <a class="btn-topbar" href="account.php">Mon compte</a>
             <a class="btn-topbar" href="index.php">Hub Jeux</a>
             <form method="post" action="account.php" class="inline-form">
-                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
                 <input type="hidden" name="action" value="logout">
                 <button class="btn-topbar" type="submit">Déconnexion</button>
             </form>
@@ -38,13 +38,13 @@
         </div>
 
         <section class="account-stat-grid admin-summary" aria-label="Statistiques générales">
-            <div class="account-stat"><strong data-stat="players"><%= summary.players %></strong><span>Comptes joueurs</span></div>
-            <div class="account-stat"><strong data-stat="online"><%= summary.online %></strong><span>Joueurs connectés</span></div>
-            <div class="account-stat"><strong data-stat="games"><%= summary.games %></strong><span>Parties lancées</span></div>
-            <div class="account-stat"><strong data-stat="completed"><%= summary.completed %></strong><span>Parties terminées</span></div>
-            <div class="account-stat"><strong data-stat="active_games"><%= summary.active_games %></strong><span>En cours (dernière heure)</span></div>
-            <div class="account-stat"><strong data-stat="bot_games"><%= summary.bot_games %></strong><span>Duels contre le bot</span></div>
-            <div class="account-stat"><strong data-stat="trained_accounts"><%= summary.trained_accounts %></strong><span>Profils de bot entraînés</span></div>
+            <div class="account-stat"><strong data-stat="players"><?= e($summary["players"]) ?></strong><span>Comptes joueurs</span></div>
+            <div class="account-stat"><strong data-stat="online"><?= e($summary["online"]) ?></strong><span>Joueurs connectés</span></div>
+            <div class="account-stat"><strong data-stat="games"><?= e($summary["games"]) ?></strong><span>Parties lancées</span></div>
+            <div class="account-stat"><strong data-stat="completed"><?= e($summary["completed"]) ?></strong><span>Parties terminées</span></div>
+            <div class="account-stat"><strong data-stat="active_games"><?= e($summary["active_games"]) ?></strong><span>En cours (dernière heure)</span></div>
+            <div class="account-stat"><strong data-stat="bot_games"><?= e($summary["bot_games"]) ?></strong><span>Duels contre le bot</span></div>
+            <div class="account-stat"><strong data-stat="trained_accounts"><?= e($summary["trained_accounts"]) ?></strong><span>Profils de bot entraînés</span></div>
         </section>
 
         <section class="admin-panel">
@@ -58,19 +58,19 @@
                 <table class="admin-table">
                     <thead><tr><th>Difficulté</th><th>Parties</th><th>Victoires du bot</th><th>Victoires joueur</th><th>Nuls</th></tr></thead>
                     <tbody id="bot-level-rows">
-                    <% if (!botLevels || botLevels.length === 0) { %>
+                    <?php if (!$botLevels || count($botLevels) === 0): ?>
                         <tr><td colspan="5" class="admin-empty">Aucune partie contre le bot pour le moment.</td></tr>
-                    <% } else { %>
-                        <% botLevels.forEach(function(row) { %>
+                    <?php else: ?>
+                        <?php foreach ($botLevels as $row): ?>
                             <tr>
-                                <td><%= row.bot_level || 'non précisé' %></td>
-                                <td><%= row.games %></td>
-                                <td><%= row.bot_wins %></td>
-                                <td><%= row.player_wins %></td>
-                                <td><%= row.ties %></td>
+                                <td><?= e($row["bot_level"] ?: 'non précisé') ?></td>
+                                <td><?= e($row["games"]) ?></td>
+                                <td><?= e($row["bot_wins"]) ?></td>
+                                <td><?= e($row["player_wins"]) ?></td>
+                                <td><?= e($row["ties"]) ?></td>
                             </tr>
-                        <% }); %>
-                    <% } %>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -97,22 +97,22 @@
                 <table class="admin-table">
                     <thead><tr><th>Statut</th><th>Pseudo</th><th>E-mail</th><th>Parties</th><th>Niveau appris</th><th>Parties apprises</th><th>Inscription</th><th>Actions</th></tr></thead>
                     <tbody id="player-rows">
-                    <% if (!players || players.length === 0) { %>
+                    <?php if (!$players || count($players) === 0): ?>
                         <tr><td colspan="8" class="admin-empty">Aucun joueur inscrit.</td></tr>
-                    <% } else { %>
-                        <% players.forEach(function(player) { %>
+                    <?php else: ?>
+                        <?php foreach ($players as $player): ?>
                             <tr>
-                                <td><span class="presence-dot <%= player.last_seen_at >= now - 90 ? 'is-online' : '' %>"></span><%= player.is_banned ? 'Banni' : (player.last_seen_at >= now - 90 ? 'En ligne' : 'Hors ligne') %></td>
-                                <td><%= player.display_name %></td>
-                                <td><%= player.email %></td>
-                                <td><%= player.games %></td>
-                                <td><%= player.learning_level %></td>
-                                <td><%= player.games_learned %></td>
-                                <td><%= new Date(player.created_at * 1000).toLocaleDateString('fr-FR') %></td>
+                                <td><span class="presence-dot <?= e($player["last_seen_at"] >= $now - 90 ? 'is-online' : '') ?>"></span><?= e($player["is_banned"] ? 'Banni' : ($player["last_seen_at"] >= $now - 90 ? 'En ligne' : 'Hors ligne')) ?></td>
+                                <td><?= e($player["display_name"]) ?></td>
+                                <td><?= e($player["email"]) ?></td>
+                                <td><?= e($player["games"]) ?></td>
+                                <td><?= e($player["learning_level"]) ?></td>
+                                <td><?= e($player["games_learned"]) ?></td>
+                                <td><?= e(date('d/m/Y', (int) $player['created_at'])) ?></td>
                                 <td><button class="admin-action-button" type="button">Chargement des actions…</button></td>
                             </tr>
-                        <% }); %>
-                    <% } %>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -163,7 +163,7 @@
     <footer class="footer">© 2026 Space &amp; Multi-Games · Tableau de bord administrateur</footer>
     <script>
         window.MG_ADMIN_API = 'games/morpion/api.php';
-        window.MG_CSRF = <%- JSON.stringify(csrfToken) %>;
+        window.MG_CSRF = <?= js_json($csrfToken) ?>;
     </script>
     <script src="assets/js/admin.js" defer></script>
     <script src="assets/js/account-presence.js" data-api="games/morpion/api.php" defer></script>

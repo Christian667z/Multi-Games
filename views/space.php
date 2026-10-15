@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="fr" data-theme="<%= currentTheme %>">
+<html lang="fr" data-theme="<?= e($currentTheme) ?>">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="space-csrf" content="<%= csrfToken %>">
+    <meta name="space-csrf" content="<?= e($csrfToken) ?>">
     <title>Space Core — Multi-Games</title>
     <meta name="description" content="Space Core - Votre compagnon et assistant IA sur Multi-Games">
     <link rel="stylesheet" href="assets/space.css">

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="<%= currentTheme %>">
+<html lang="fr" data-theme="<?= e($currentTheme) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +10,7 @@
 
     <link rel="stylesheet" href="assets/css/themes/themes.css">
     <link rel="stylesheet" href="assets/css/base.css">
-    <style><%- customThemeCss %></style>
+    <style><?= $customThemeCss ?></style>
 
     <script src="assets/js/theme.js"></script>
     <script src="assets/js/audio.js" defer></script>
@@ -105,17 +105,17 @@
                 <span>Classement</span>
             </a>
             <a class="btn-topbar" href="space-core/">Parler à Space</a>
-            <% if (user) { %>
+            <?php if ($user): ?>
                 <a class="btn-topbar" href="account.php">
-                    <span><%= user.avatar || '🚀' %></span>
-                    <span><%= user.display_name %></span>
+                    <span><?= e($user["avatar"] ?: '🚀') ?></span>
+                    <span><?= e($user["display_name"]) ?></span>
                 </a>
-                <% if (user.role === 'admin') { %>
+                <?php if ($user["role"] === 'admin'): ?>
                     <a class="btn-topbar admin-btn" href="admin.php">Admin</a>
-                <% } %>
-            <% } else { %>
+                <?php endif; ?>
+            <?php else: ?>
                 <a class="btn-topbar" href="account.php">Connexion / Inscription</a>
-            <% } %>
+            <?php endif; ?>
 
             <!-- Bouton Palette -->
             <button class="btn-topbar palette-btn" id="theme-palette-btn" title="Changer de thème">
@@ -132,11 +132,11 @@
 
             <!-- Paramètres Sélecteur Thème Lisible -->
             <select id="themeSelect" class="btn-topbar theme-selector-select" title="Palette de couleurs">
-                <% gameThemes.forEach(function(theme) { %>
-                    <option value="<%= theme.theme_key %>" <%= currentTheme === theme.theme_key ? 'selected' : '' %>>
-                        <%= theme.name %>
+                <?php foreach ($gameThemes as $theme): ?>
+                    <option value="<?= e($theme["theme_key"]) ?>" <?= e($currentTheme === $theme["theme_key"] ? 'selected' : '') ?>>
+                        <?= e($theme["name"]) ?>
                     </option>
-                <% }); %>
+                <?php endforeach; ?>
             </select>
         </div>
     </header>
@@ -152,39 +152,39 @@
         </div>
 
         <div class="hub-grid">
-            <% games.forEach(function(g) { %>
-                <a class="game-card-link" href="<%= g.url %>">
-                    <div class="mode-card" style="<%= !g.active ? 'opacity: 0.6; filter: grayscale(0.5); cursor: not-allowed;' : '' %>">
+            <?php foreach ($games as $g): ?>
+                <a class="game-card-link" href="<?= e($g["url"]) ?>">
+                    <div class="mode-card" style="<?= e(!$g["active"] ? 'opacity: 0.6; filter: grayscale(0.5); cursor: not-allowed;' : '') ?>">
                         <div class="card-top">
-                            <span class="game-players"><%= g.players %></span>
-                            <span class="game-badge <%= g.active ? 'active' : 'soon' %>">
-                                <%= g.badge %>
+                            <span class="game-players"><?= e($g["players"]) ?></span>
+                            <span class="game-badge <?= e($g["active"] ? 'active' : 'soon') ?>">
+                                <?= e($g["badge"]) ?>
                             </span>
                         </div>
 
                         <div class="card-body">
                             <div class="card-illustration" style="font-size: 3rem;">
-                                <%= g.icon %>
+                                <?= e($g["icon"]) ?>
                             </div>
 
-                            <h2 class="card-title"><%= g.name %></h2>
-                            <p class="card-desc"><%= g.desc %></p>
+                            <h2 class="card-title"><?= e($g["name"]) ?></h2>
+                            <p class="card-desc"><?= e($g["desc"]) ?></p>
 
                             <div class="card-actions">
-                                <% if (g.active) { %>
+                                <?php if ($g["active"]): ?>
                                     <button class="btn-primary-action">
                                         Jouer maintenant ➔
                                     </button>
-                                <% } else { %>
+                                <?php else: ?>
                                     <button class="btn-secondary-action" disabled style="cursor: not-allowed; opacity: 0.7;">
                                         Arrive bientôt 🔒
                                     </button>
-                                <% } %>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
                 </a>
-            <% }); %>
+            <?php endforeach; ?>
         </div>
     </main>
 
@@ -193,7 +193,7 @@
     </footer>
 
     <script>
-        window.MG_CSRF = <%- JSON.stringify(csrfToken) %>;
+        window.MG_CSRF = <?= js_json($csrfToken) ?>;
         document.addEventListener('DOMContentLoaded', () => {
             const w = localStorage.getItem('mg_stat_wins') || '0';
             const l = localStorage.getItem('mg_stat_losses') || '0';

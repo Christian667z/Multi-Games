@@ -1,20 +1,20 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="<%= currentTheme %>">
+<html lang="fr" data-theme="<?= e($currentTheme) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Morpion by Space - Multi-Games 4K</title>
 
     <script>
-        window.LAN_BASE_URL = <%- JSON.stringify(lanBaseUrl) %>;
-        window.MG_CSRF = <%- JSON.stringify(csrfToken) %>;
-        window.SPACE_CORE_GRID_SIZE = <%- JSON.stringify(requestedGridSize) %>;
-        window.MG_PLAYER_NAME = <%- JSON.stringify(playerDisplayName) %>;
+        window.LAN_BASE_URL = <?= js_json($lanBaseUrl) ?>;
+        window.MG_CSRF = <?= js_json($csrfToken) ?>;
+        window.SPACE_CORE_GRID_SIZE = <?= js_json($requestedGridSize) ?>;
+        window.MG_PLAYER_NAME = <?= js_json($playerDisplayName) ?>;
     </script>
 
     <link rel="stylesheet" href="../../assets/css/themes/themes.css">
     <link rel="stylesheet" href="../../assets/css/base.css">
-    <style><%- customThemeCss %></style>
+    <style><?= $customThemeCss ?></style>
 
     <script src="../../assets/js/theme.js"></script>
     <script src="../../assets/js/audio.js" defer></script>
@@ -39,17 +39,17 @@
                 <span>Classement</span>
             </a>
             <a class="btn-topbar" href="../../space-core/">Space Core</a>
-            <% if (user) { %>
+            <?php if ($user): ?>
                 <a class="btn-topbar" href="../../account.php">
-                    <span><%= user.avatar || '🚀' %></span>
-                    <span><%= user.display_name %></span>
+                    <span><?= e($user["avatar"] ?: '🚀') ?></span>
+                    <span><?= e($user["display_name"]) ?></span>
                 </a>
-                <% if (user.role === 'admin') { %>
+                <?php if ($user["role"] === 'admin'): ?>
                     <a class="btn-topbar admin-btn" href="../../admin.php">Admin</a>
-                <% } %>
-            <% } else { %>
+                <?php endif; ?>
+            <?php else: ?>
                 <a class="btn-topbar" href="../../account.php">Connexion</a>
-            <% } %>
+            <?php endif; ?>
 
             <button class="btn-topbar palette-btn" id="theme-palette-btn" title="Changer de thème">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -292,23 +292,23 @@
             </label>
             <label class="arena-setting">Thème
                 <select class="input-field theme-selector-select" aria-label="Thème de couleur" onchange="window.setSpecificTheme(this.value)">
-                    <% gameThemes.forEach(function(theme) { %>
-                        <option value="<%= theme.theme_key %>"><%= theme.name %></option>
-                    <% }); %>
+                    <?php foreach ($gameThemes as $theme): ?>
+                        <option value="<?= e($theme["theme_key"]) ?>"><?= e($theme["name"]) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </label>
             <label class="arena-setting">Symbole X
                 <select id="arena-symbol-x-select" class="input-field" aria-label="Symbole du joueur X">
-                    <% gameSymbols.forEach(function(symbol) { %>
-                        <option value="<%= symbol.symbol %>"><%= symbol.symbol %></option>
-                    <% }); %>
+                    <?php foreach ($gameSymbols as $symbol): ?>
+                        <option value="<?= e($symbol["symbol"]) ?>"><?= e($symbol["symbol"]) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </label>
             <label class="arena-setting">Symbole O
                 <select id="arena-symbol-o-select" class="input-field" aria-label="Symbole du joueur O">
-                    <% gameSymbols.forEach(function(symbol) { %>
-                        <option value="<%= symbol.symbol %>"><%= symbol.symbol %></option>
-                    <% }); %>
+                    <?php foreach ($gameSymbols as $symbol): ?>
+                        <option value="<?= e($symbol["symbol"]) ?>"><?= e($symbol["symbol"]) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </label>
         </div>
@@ -351,9 +351,9 @@
             <h3 class="modal-title">Match Hors Ligne</h3>
             <p class="modal-subtitle">Paramétrez les joueurs et le format de la grille.</p>
 
-            <div class="input-group" <%= user ? 'hidden' : '' %>>
+            <div class="input-group" <?= e($user ? 'hidden' : '') ?>>
                 <label class="input-label">Pseudo Joueur 1 (✕) :</label>
-                <input type="text" id="local-p1-name" class="input-field" value="<%= playerDisplayName %>" maxlength="30" <%= user ? 'readonly' : '' %>>
+                <input type="text" id="local-p1-name" class="input-field" value="<?= e($playerDisplayName) ?>" maxlength="30" <?= e($user ? 'readonly' : '') ?>>
             </div>
 
             <div class="input-group">
@@ -386,9 +386,9 @@
             <p class="modal-subtitle">Difficulté : <strong id="bot-modal-level-name" style="color: var(--primary);">Intermédiaire</strong></p>
             <input type="hidden" id="bot-level-selected" value="medium">
 
-            <div class="input-group" <%= user ? 'hidden' : '' %>>
+            <div class="input-group" <?= e($user ? 'hidden' : '') ?>>
                 <label class="input-label">Votre Pseudo :</label>
-                <input type="text" id="bot-player-name" class="input-field" value="<%= playerDisplayName %>" maxlength="30" <%= user ? 'readonly' : '' %>>
+                <input type="text" id="bot-player-name" class="input-field" value="<?= e($playerDisplayName) ?>" maxlength="30" <?= e($user ? 'readonly' : '') ?>>
             </div>
 
             <div class="input-group">
@@ -424,9 +424,9 @@
             <h3 class="modal-title">Créer un salon Wi-Fi</h3>
             <p class="modal-subtitle">Hébergez une partie sur votre réseau local.</p>
 
-            <div class="input-group" <%= user ? 'hidden' : '' %>>
+            <div class="input-group" <?= e($user ? 'hidden' : '') ?>>
                 <label class="input-label">Joueur X (Hôte) :</label>
-                <input type="text" id="wifi-host-name" class="input-field" value="<%= playerDisplayName %>" maxlength="30" <%= user ? 'readonly' : '' %>>
+                <input type="text" id="wifi-host-name" class="input-field" value="<?= e($playerDisplayName) ?>" maxlength="30" <?= e($user ? 'readonly' : '') ?>>
             </div>
 
             <div class="input-group">
@@ -470,7 +470,7 @@
             <div class="input-group">
                 <label class="input-label">Lien direct pour mobile ou PC :</label>
                 <div class="copy-link-box">
-                    <input type="text" class="copy-link-input" id="wifi-share-link" readonly value="<%= lanBaseUrl %>">
+                    <input type="text" class="copy-link-input" id="wifi-share-link" readonly value="<?= e($lanBaseUrl) ?>">
                     <button class="btn-copy" id="btn-copy-wifi-link">Copier</button>
                 </div>
             </div>
@@ -489,9 +489,9 @@
             <h3 class="modal-title">Rejoindre une partie Wi-Fi</h3>
             <p class="modal-subtitle">Entrez le code à 4 lettres affiché sur l'écran de l'hôte.</p>
 
-            <div class="input-group" <%= user ? 'hidden' : '' %>>
+            <div class="input-group" <?= e($user ? 'hidden' : '') ?>>
                 <label class="input-label">Votre pseudo :</label>
-                <input type="text" id="join-player-name" class="input-field" placeholder="Ex: Alex" value="<%= playerDisplayName %>" maxlength="30" <%= user ? 'readonly' : '' %>>
+                <input type="text" id="join-player-name" class="input-field" placeholder="Ex: Alex" value="<?= e($playerDisplayName) ?>" maxlength="30" <?= e($user ? 'readonly' : '') ?>>
             </div>
 
             <div class="input-group">
@@ -514,9 +514,9 @@
             <h3 class="modal-title">Configuration Tournoi</h3>
             <p class="modal-subtitle">Jouez en plusieurs manches avec tableau des scores conservé.</p>
 
-            <div class="input-group" <%= user ? 'hidden' : '' %>>
+            <div class="input-group" <?= e($user ? 'hidden' : '') ?>>
                 <label class="input-label">Pseudo Joueur 1 :</label>
-                <input type="text" id="tourney-p1-name" class="input-field" value="<%= playerDisplayName %>" maxlength="30" <%= user ? 'readonly' : '' %>>
+                <input type="text" id="tourney-p1-name" class="input-field" value="<?= e($playerDisplayName) ?>" maxlength="30" <?= e($user ? 'readonly' : '') ?>>
             </div>
 
             <div class="input-group">
@@ -620,25 +620,25 @@
             <div class="input-group">
                 <label class="input-label">Thème Couleur :</label>
                 <select class="input-field theme-selector-select" onchange="window.setSpecificTheme(this.value)">
-                    <% gameThemes.forEach(function(theme) { %>
-                        <option value="<%= theme.theme_key %>"><%= theme.name %></option>
-                    <% }); %>
+                    <?php foreach ($gameThemes as $theme): ?>
+                        <option value="<?= e($theme["theme_key"]) ?>"><?= e($theme["name"]) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="input-group">
                 <label class="input-label" for="symbol-x-select">Symbole du joueur X :</label>
                 <select id="symbol-x-select" class="input-field">
-                    <% gameSymbols.forEach(function(symbol) { %>
-                        <option value="<%= symbol.symbol %>"><%= symbol.symbol + ' — ' + symbol.label %></option>
-                    <% }); %>
+                    <?php foreach ($gameSymbols as $symbol): ?>
+                        <option value="<?= e($symbol["symbol"]) ?>"><?= e($symbol["symbol"] . ' — ' . $symbol["label"]) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="input-group">
                 <label class="input-label" for="symbol-o-select">Symbole du joueur O :</label>
                 <select id="symbol-o-select" class="input-field">
-                    <% gameSymbols.forEach(function(symbol) { %>
-                        <option value="<%= symbol.symbol %>"><%= symbol.symbol + ' — ' + symbol.label %></option>
-                    <% }); %>
+                    <?php foreach ($gameSymbols as $symbol): ?>
+                        <option value="<?= e($symbol["symbol"]) ?>"><?= e($symbol["symbol"] . ' — ' . $symbol["label"]) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
 
@@ -652,7 +652,7 @@
             <div class="input-group" style="margin-top: 1rem;">
                 <label class="input-label">Adresse IP Locale Détectée :</label>
                 <div style="font-family: monospace; font-size: 0.9rem; color: var(--primary); padding: 0.5rem 0;">
-                    <%= serverIp %>
+                    <?= e($serverIp) ?>
                 </div>
             </div>
         </div>
