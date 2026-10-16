@@ -14,7 +14,6 @@
 
     <script src="assets/js/theme.js"></script>
     <script src="assets/js/audio.js" defer></script>
-    <script src="dev/livereload.js" defer></script>
 
     <style>
         .hub-hero {
@@ -106,7 +105,7 @@
             </a>
             <a class="btn-topbar" href="space-core/">Parler à Space</a>
             <?php if ($user): ?>
-                <a class="btn-topbar" href="account.php">
+                <a class="btn-topbar" href="profile.php">
                     <span><?= e($user["avatar"] ?: '🚀') ?></span>
                     <span><?= e($user["display_name"]) ?></span>
                 </a>
@@ -124,11 +123,22 @@
                 </svg>
             </button>
 
-            <!-- Statistiques Persistantes -->
-            <a href="leaderboard.php" class="level-badge" id="stats-pill" title="Voir le classement et vos statistiques" style="text-decoration: none; cursor: pointer;">
-                <span>🏆</span>
-                <span id="stats-pill-text">0 V | 0 D</span>
-            </a>
+            <!-- Profil classé réel (rang, points, niveau) — calculé par le serveur -->
+            <?php
+            $hubRank = $user ? mg_rank_for_points((int)($user['ranked_points'] ?? 0)) : null;
+            $hubLevel = $user ? mg_level_from_xp((int)($user['xp'] ?? 0)) : null;
+            ?>
+            <?php if ($user): ?>
+                <a href="leaderboard.php" class="level-badge" id="stats-pill" title="Votre rang, vos points et votre niveau — voir le classement" style="text-decoration: none; cursor: pointer;">
+                    <span><?= e($hubRank['icon']) ?></span>
+                    <span><?= e($hubRank['label']) ?> · <?= e($hubRank['points']) ?> pts · Niv. <?= e($hubLevel['level']) ?></span>
+                </a>
+            <?php else: ?>
+                <a href="account.php" class="level-badge" id="stats-pill" title="Connectez-vous pour être classé" style="text-decoration: none; cursor: pointer;">
+                    <span>🔒</span>
+                    <span>Mode classé — connexion requise</span>
+                </a>
+            <?php endif; ?>
 
             <!-- Paramètres Sélecteur Thème Lisible -->
             <select id="themeSelect" class="btn-topbar theme-selector-select" title="Palette de couleurs">
@@ -194,12 +204,8 @@
 
     <script>
         window.MG_CSRF = <?= js_json($csrfToken) ?>;
-        document.addEventListener('DOMContentLoaded', () => {
-            const w = localStorage.getItem('mg_stat_wins') || '0';
-            const l = localStorage.getItem('mg_stat_losses') || '0';
-            const el = document.getElementById('stats-pill-text');
-            if (el) el.textContent = `${w} V | ${l} D`;
-        });
+        // La puce d'en-tête est rendue par le serveur (rang, points, niveau) :
+        // plus de compteurs localStorage figés sur « 0 V | 0 D ».
     </script>
     <script src="assets/js/account-presence.js" data-api="games/morpion/api.php" defer></script>
 

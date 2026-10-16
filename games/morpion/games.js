@@ -7,6 +7,7 @@ const MorpionGame = (function() {
     // État du jeu
     let mode = 'local'; // 'local', 'bot', 'wifi'
     let botLevel = 'medium';
+    let isRanked = false; // true pendant un match classé (points + XP classés)
     let botStartChoice = 'player'; // 'player' (X), 'bot' (O), 'alternate'
     let boardSize = 3;  // 3 ou 10
     let winLength = 3;  // 3 ou 5
@@ -59,7 +60,7 @@ const MorpionGame = (function() {
         return size === 3 ? 3 : (size === 5 ? 4 : 5);
     }
 
-    function beginTrackedGame(gameMode, level = null, size = boardSize) {
+    function beginTrackedGame(gameMode, level = null, size = boardSize, opponentName = '') {
         activeTrackedGameId = null;
         const startPromise = fetch('api.php', {
             method: 'POST',
@@ -70,8 +71,11 @@ const MorpionGame = (function() {
             body: JSON.stringify({
                 action: 'start_game',
                 mode: gameMode,
+                game_id: 'morpion',
+                opponent_name: opponentName || (gameMode === 'bot' ? 'Space' : (gameMode === 'wifi' ? 'Joueur Wi-Fi' : 'Joueur 2')),
                 bot_level: level,
-                board_size: size
+                board_size: size,
+                is_ranked: isRanked
             })
         }).then(async response => {
             const data = await response.json();
@@ -118,6 +122,12 @@ const MorpionGame = (function() {
             if (!response.ok || !data.success) {
                 throw new Error(data.error || `Enregistrement du résultat impossible (${response.status}).`);
             }
+            // Le serveur renvoie le détail des points/XP ; on l'affiche au joueur.
+            if (data.rewards) {
+                showRewards(data.rewards);
+            } else if (isRanked && !window.MG_RANKED?.authenticated) {
+                /* partie non classée : rien à afficher */
+            }
         } catch (error) {
             console.error(error);
         }
@@ -159,12 +169,131 @@ const MorpionGame = (function() {
         updateStatsPill();
     }
 
+    /**
+     * La puce de l'en-tête n'affiche plus les compteurs locaux (qui restaient
+     * bloqués sur « 0 V | 0 D » tant que le navigateur n'avait rien mémorisé)
+     * mais le profil classé réel : rang, points et niveau.
+     */
     function updateStatsPill() {
-        const stats = getStats();
-        const pill = document.getElementById('stats-pill-text');
-        if (pill) {
-            pill.textContent = `${stats.wins} V | ${stats.losses} D`;
+        const modal = document.getElementById('stats-modal');
+        if (modal && modal.style.display === 'flex') refreshRankedProfile();
+    }
+
+    // ==========================================
+    // PROFIL CLASSÉ : RANG, POINTS, NIVEAU, XP
+    // ==========================================
+    function rankState() {
+        if (!window.MG_RANKED) {
+            window.MG_RANKED = { authenticated: false, points: 0, rank: null, level: null, tiers: [], season: 1 };
         }
+        return window.MG_RANKED;
+    }
+
+    function setText(id, value) {
+        const node = document.getElementById(id);
+        if (node && value !== undefined && value !== null) node.textContent = String(value);
+    }
+
+    /** Reflète le profil classé dans l'en-tête, la carte Classé et les modales. */
+    function paintRankChip(profile) {
+        if (!profile) return;
+        const state = rankState();
+        const rank = profile.rank || state.rank;
+        const level = profile.level || state.level;
+        if (!rank) return;
+
+        setText('rank-chip-icon', rank.icon);
+        setText('rank-chip-label', rank.label);
+        setText('rank-chip-points', rank.points);
+        if (level) {
+            setText('rank-chip-level', level.level);
+            const fill = document.getElementById('rank-chip-xp');
+            if (fill) fill.style.width = (level.progress || 0) + '%';
+        }
+        setText('ranked-card-icon', rank.icon);
+        setText('ranked-card-label', rank.label);
+        setText('ranked-card-sub', rank.points + ' pts · Niveau ' + (level ? level.level : 1) +
+            ' · Saison ' + (profile.season || state.season || 1));
+        setText('ranked-modal-icon', rank.icon);
+        setText('ranked-modal-label', rank.label);
+        setText('ranked-modal-sub', rank.points + ' pts' + (level ? ' · Niveau ' + level.level : ''));
+        setText('stats-rank-icon', rank.icon);
+        setText('stats-rank-label', rank.label);
+        if (level) {
+            setText('stats-rank-sub', rank.points + ' pts · Niveau ' + level.level +
+                ' · ' + level.into + '/' + (level.next || '—') + ' XP');
+        }
+        document.querySelectorAll('.ranked-tier').forEach(chip => {
+            chip.classList.toggle('is-current', chip.dataset.tier === rank.key);
+        });
+    }
+
+    /** Recharge le profil classé depuis le serveur (source de vérité). */
+    async function refreshRankedProfile() {
+        if (!window.MG_RANKED || !window.MG_RANKED.authenticated) return null;
+        try {
+            const response = await fetch('api.php?action=ranked_profile', { cache: 'no-store' });
+            const data = await response.json();
+            if (!response.ok || !data.success || !data.profile) return null;
+            window.MG_RANKED = Object.assign({}, rankState(), data.profile, { authenticated: true });
+            paintRankChip(data.profile);
+            return data.profile;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    /** Affiche la modale de fin de partie avec les points et l'XP gagnés. */
+    function showRewards(rewards) {
+        const modal = document.getElementById('reward-modal');
+        if (!modal || !rewards) return;
+
+        const ranked = rewards.ranked === true;
+        const points = Number(rewards.points || 0);
+        const outcomeLabel = { win: 'Victoire', loss: 'Défaite', tie: 'Égalité' }[rewards.outcome] || '';
+
+        setText('reward-title', ranked ? 'Match classé terminé' : 'Partie terminée');
+        setText('reward-subtitle', ranked
+            ? (outcomeLabel ? outcomeLabel + ' — ' : '') + (rewards.label || '')
+            : 'Partie amicale enregistrée.');
+
+        const pointsBox = document.getElementById('reward-points-box');
+        if (ranked) {
+            setText('reward-points', (points > 0 ? '+' : '') + points);
+            if (pointsBox) {
+                pointsBox.classList.toggle('is-up', points > 0);
+                pointsBox.classList.toggle('is-down', points < 0);
+                pointsBox.classList.toggle('is-neutral', points === 0);
+            }
+            setText('reward-note', (rewards.points_before ?? 0) + ' → ' + (rewards.points_after ?? 0) + ' points classés');
+        } else {
+            setText('reward-points', 'Aucun');
+            if (pointsBox) {
+                pointsBox.classList.remove('is-up', 'is-down');
+                pointsBox.classList.add('is-neutral');
+            }
+            setText('reward-note', 'Les parties amicales rapportent de l’XP mais aucun point classé.');
+        }
+
+        setText('reward-xp', '+' + Number(rewards.xp || 0));
+        setText('reward-rank-icon', rewards.rank_after ? rewards.rank_after.icon : '🎮');
+        setText('reward-rank-label', rewards.rank_after ? rewards.rank_after.label : 'Amical');
+
+        const fill = document.getElementById('reward-progress-fill');
+        if (fill) fill.style.width = (rewards.rank_after ? rewards.rank_after.progress : 0) + '%';
+
+        const levelUp = document.getElementById('reward-levelup');
+        if (levelUp) {
+            if (rewards.level_up) {
+                levelUp.hidden = false;
+                levelUp.textContent = '🎉 Niveau ' + rewards.level_after + ' atteint !';
+            } else {
+                levelUp.hidden = true;
+            }
+        }
+
+        if (rewards.profile) paintRankChip(rewards.profile);
+        modal.style.display = 'flex';
     }
 
     // ==========================================
@@ -346,32 +475,55 @@ const MorpionGame = (function() {
         boardEl.style.gap = '0';
         boardEl.style.setProperty('--grid-n', boardSize);
 
-        boardEl.innerHTML = '';
         const gridSizeSelect = document.getElementById('arena-grid-size');
         if (gridSizeSelect) gridSizeSelect.value = String(boardSize);
         boardEl.setAttribute('role', 'grid');
         boardEl.setAttribute('aria-label', `Plateau de morpion ${boardSize} par ${boardSize}`);
 
-        // Taille dynamique des symboles (X / O) : font-size s'adapte à la grille
-        const symbolFontSize = `calc(min(700px, 80vmin) / ${boardSize} * 0.72)`;
+        // Les cases sont créées une seule fois puis mises à jour sur place :
+        // reconstruire tout le plateau à chaque coup provoquait un clignotement,
+        // relançait les écouteurs et empêchait toute transition CSS (et devenait
+        // coûteux sur une grille 19x19, soit 361 cases).
+        const existing = boardEl.children;
+        const sameGrid = boardEl.dataset.gridSize === String(boardSize) && existing.length === board.length;
+
+        if (!sameGrid) {
+            boardEl.replaceChildren();
+            boardEl.dataset.gridSize = String(boardSize);
+        }
+
+        const prevBoard = moveHistory.length ? moveHistory[moveHistory.length - 1].board : null;
+        let lastIdx = -1;
+        if (prevBoard) {
+            for (let i = 0; i < board.length; i++) {
+                if (board[i] && !prevBoard[i]) {
+                    lastIdx = i;
+                    break;
+                }
+            }
+        }
 
         board.forEach((val, idx) => {
-            const cell = document.createElement('div');
-            cell.className = 'board-cell cell' + (val ? ` cell-${val.toLowerCase()} filled` : '');
-            cell.style.fontSize = symbolFontSize;
-            cell.textContent = val ? symbolFor(val) : '';
-            cell.dataset.index = idx;
-            cell.setAttribute('role', 'gridcell');
+            let cell = sameGrid ? existing[idx] : null;
+            if (!cell) {
+                cell = document.createElement('div');
+                cell.dataset.index = idx;
+                cell.setAttribute('role', 'gridcell');
+                cell.addEventListener('click', () => handleCellClick(idx));
+                cell.addEventListener('keydown', (e) => handleCellKeyDown(e, idx));
+                boardEl.appendChild(cell);
+            }
+            const classes = 'board-cell cell'
+                + (val ? ` cell-${val.toLowerCase()} filled` : '')
+                + (idx === lastIdx ? ' last-move' : '');
+            if (cell.className !== classes) cell.className = classes;
+            const symbol = val ? symbolFor(val) : '';
+            if (cell.textContent !== symbol) cell.textContent = symbol;
             cell.setAttribute('tabindex', idx === focusedCellIndex ? '0' : '-1');
 
             const row = Math.floor(idx / boardSize) + 1;
             const col = (idx % boardSize) + 1;
             cell.setAttribute('aria-label', `Ligne ${row}, Colonne ${col}, ${val ? 'symbole ' + val : 'case vide'}`);
-
-            cell.addEventListener('click', () => handleCellClick(idx));
-            cell.addEventListener('keydown', (e) => handleCellKeyDown(e, idx));
-
-            boardEl.appendChild(cell);
         });
     }
 
@@ -793,10 +945,12 @@ const MorpionGame = (function() {
         if (isGameOver) {
             indicator.textContent = 'Partie terminée — Cliquez sur Rejouer';
             indicator.className = 'turn-indicator';
+            setBotThinking(false);
             return;
         }
 
         if (mode === 'wifi') {
+            setBotThinking(false);
             if (currentPlayer === wifiSymbol) {
                 indicator.textContent = 'À votre tour de jouer ! (⚡)';
                 indicator.className = 'turn-indicator turn-x';
@@ -808,6 +962,7 @@ const MorpionGame = (function() {
         }
 
         if (mode === 'bot') {
+            setBotThinking(isBotThinking);
             if (isBotThinking) {
                 indicator.textContent = 'Le bot réfléchit... 🤖';
                 indicator.className = 'turn-indicator turn-o';
@@ -819,9 +974,16 @@ const MorpionGame = (function() {
         }
 
         // Local
+        setBotThinking(false);
         const name = playerNames[currentPlayer] || `Joueur ${currentPlayer}`;
         indicator.textContent = `Au tour de ${name} (${currentPlayer === 'X' ? '✕' : '○'})`;
         indicator.className = `turn-indicator turn-${currentPlayer.toLowerCase()}`;
+    }
+
+    /** Affiche / masque l'indicateur animé « le bot réfléchit ». */
+    function setBotThinking(active) {
+        const box = document.getElementById('player-o-box');
+        if (box) box.classList.toggle('is-thinking', !!active && mode === 'bot');
     }
 
     function updateScoreboard() {
@@ -867,6 +1029,9 @@ const MorpionGame = (function() {
     function showGameView() {
         document.getElementById('menu-view').style.display = 'none';
         document.getElementById('game-view').style.display = 'flex';
+        // En pleine partie la page ne défile plus : le pied de page est masqué
+        // pour que le plateau tienne intégralement dans la fenêtre.
+        document.body.classList.add('in-game');
         const banner = document.getElementById('status-banner');
         if (banner) banner.style.display = 'none';
     }
@@ -888,6 +1053,7 @@ const MorpionGame = (function() {
         }
 
         closeActionModals();
+        document.body.classList.remove('in-game');
         document.getElementById('game-view').style.display = 'none';
         document.getElementById('menu-view').style.display = 'block';
     }
@@ -1177,7 +1343,8 @@ const MorpionGame = (function() {
     }
 
     return {
-        startLocalMatch: function(size = 3, p1Name = 'Joueur 1', p2Name = 'Joueur 2') {
+        startLocalMatch: function(size = 3, p1Name = 'Joueur 1', p2Name = 'Joueur 2', ranked = false) {
+            isRanked = !!ranked;
             mode = 'local';
             isTournament = false;
             boardSize = size;
@@ -1189,9 +1356,10 @@ const MorpionGame = (function() {
             closeAllModals();
             showGameView();
             initBoard();
-            beginTrackedGame('local', null, boardSize);
+            beginTrackedGame('local', null, boardSize, p2Name);
         },
-        startTournament: function(targetWins = 3, size = 3, p1Name = 'Joueur 1', p2Name = 'Joueur 2') {
+        startTournament: function(targetWins = 3, size = 3, p1Name = 'Joueur 1', p2Name = 'Joueur 2', ranked = false) {
+            isRanked = !!ranked;
             mode = 'local';
             isTournament = true;
             tournamentTarget = targetWins;
@@ -1204,9 +1372,10 @@ const MorpionGame = (function() {
             closeAllModals();
             showGameView();
             initBoard();
-            beginTrackedGame('local', null, boardSize);
+            beginTrackedGame('local', null, boardSize, p2Name);
         },
-        startBotMatch: async function(level = 'medium', size = 3, starter = 'player', playerName = 'Vous') {
+        startBotMatch: async function(level = 'medium', size = 3, starter = 'player', playerName = 'Vous', ranked = false) {
+            isRanked = !!ranked;
             if (level === 'adaptive') {
                 try {
                     await loadBotLearningProfile();
@@ -1241,6 +1410,28 @@ const MorpionGame = (function() {
             initBoard();
             beginTrackedGame('bot', botLevel, boardSize);
         },
+        /**
+         * Lance un match classé. Les points et l'XP sont calculés par le serveur
+         * à la fin de la manche (voir showRewards).
+         */
+        startRankedMatch: async function(opponent = 'bot', options = {}) {
+            const opts = options || {};
+            if (!rankState().authenticated) {
+                window.location.assign('../../account.php');
+                return;
+            }
+            if (opponent === 'bot') {
+                await MorpionGame.startBotMatch(opts.level || 'medium', opts.size || 3, opts.starter || 'player', window.MG_PLAYER_NAME || 'Vous', true);
+            } else if (opponent === 'wifi') {
+                isRanked = true;
+                await startWifiHost(opts.size || 3, opts.name);
+            } else {
+                MorpionGame.startLocalMatch(opts.size || 3, window.MG_PLAYER_NAME || 'Joueur 1', opts.name || 'Joueur 2', true);
+            }
+        },
+        isRankedMatch: function() { return isRanked; },
+        refreshRankedProfile: refreshRankedProfile,
+        showRewards: showRewards,
         startWifiHost: startWifiHost,
         joinWifiRoom: joinWifiRoom,
         rematch: function() {
@@ -1483,6 +1674,80 @@ const MorpionGame = (function() {
                     document.getElementById('wifi-create-modal').style.display = 'flex';
                 }
             });
+
+            // ==========================================
+            // MODE CLASSÉ (RANKED)
+            // ==========================================
+            document.getElementById('rank-chip')?.addEventListener('click', (event) => {
+                if (!rankState().authenticated) return; // le lien mène à la page de connexion
+                event.preventDefault();
+                refreshRankedProfile();
+                const modal = document.getElementById('stats-modal');
+                if (modal) modal.style.display = 'flex';
+            });
+
+            document.getElementById('btn-ranked-guide')?.addEventListener('click', () => {
+                const modal = document.getElementById('ranked-guide-modal');
+                if (modal) modal.style.display = 'flex';
+            });
+
+            document.getElementById('btn-ranked-start')?.addEventListener('click', () => {
+                if (!rankState().authenticated) {
+                    window.location.assign('../../account.php');
+                    return;
+                }
+                paintRankChip(rankState().authenticated ? rankState() : null);
+                refreshRankedProfile();
+                const modal = document.getElementById('ranked-setup-modal');
+                if (modal) modal.style.display = 'flex';
+            });
+
+            const rankedOpponent = document.getElementById('ranked-opponent');
+            const syncRankedGroups = () => {
+                const value = rankedOpponent ? rankedOpponent.value : 'bot';
+                const botGroup = document.getElementById('ranked-bot-level-group');
+                const localGroup = document.getElementById('ranked-local-group');
+                const starterGroup = document.getElementById('ranked-starter-group');
+                const note = document.getElementById('ranked-modal-note');
+                if (botGroup) botGroup.hidden = value !== 'bot';
+                if (localGroup) localGroup.hidden = value !== 'local';
+                if (starterGroup) starterGroup.hidden = value === 'wifi';
+                if (note) {
+                    note.textContent = value === 'wifi'
+                        ? 'Un salon classé est ouvert : chaque joueur connecté gagne ou perd des points.'
+                        : 'Les points sont calculés par le serveur à la fin de la manche.';
+                }
+            };
+            rankedOpponent?.addEventListener('change', syncRankedGroups);
+            syncRankedGroups();
+
+            document.getElementById('btn-confirm-ranked')?.addEventListener('click', () => {
+                const opponent = rankedOpponent ? rankedOpponent.value : 'bot';
+                const size = Number((document.getElementById('ranked-grid-size') || {}).value) || 3;
+                const starter = (document.getElementById('ranked-starter') || {}).value || 'player';
+                const level = (document.getElementById('ranked-bot-level') || {}).value || 'medium';
+                const name = (document.getElementById('ranked-local-name') || {}).value || 'Joueur 2';
+                closeAllModals();
+                MorpionGame.startRankedMatch(opponent, {
+                    level: level,
+                    size: size,
+                    starter: starter === 'opponent' ? 'bot' : starter,
+                    name: name
+                });
+            });
+
+            document.getElementById('reward-close')?.addEventListener('click', () => {
+                const modal = document.getElementById('reward-modal');
+                if (modal) modal.style.display = 'none';
+            });
+            document.getElementById('reward-next-round')?.addEventListener('click', () => {
+                const modal = document.getElementById('reward-modal');
+                if (modal) modal.style.display = 'none';
+                MorpionGame.rematch();
+            });
+
+            // Le profil classé affiché provient du serveur (source de vérité).
+            refreshRankedProfile();
 
             // Fermeture des modales
             document.querySelectorAll('.modal-close-btn').forEach(btn => {

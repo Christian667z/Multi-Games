@@ -5,22 +5,315 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Morpion by Space - Multi-Games 4K</title>
 
+    <?php
+    // Profil classé calculé côté serveur : la puce de l'en-tête est correcte
+    // dès le premier rendu, sans attendre un appel API.
+    $rankedTier = $user ? mg_rank_for_points((int)($user['ranked_points'] ?? 0)) : null;
+    $rankedLevel = $user ? mg_level_from_xp((int)($user['xp'] ?? 0)) : null;
+    $rankedSeason = $user ? (int)($user['season_id'] ?? 1) : 1;
+    ?>
     <script>
         window.LAN_BASE_URL = <?= js_json($lanBaseUrl) ?>;
         window.MG_CSRF = <?= js_json($csrfToken) ?>;
         window.SPACE_CORE_GRID_SIZE = <?= js_json($requestedGridSize) ?>;
         window.MG_PLAYER_NAME = <?= js_json($playerDisplayName) ?>;
+        window.MG_RANKED = <?= js_json([
+            'authenticated' => (bool) $user,
+            'points' => $rankedTier['points'] ?? 0,
+            'rank' => $rankedTier,
+            'level' => $rankedLevel,
+            'season' => $rankedSeason,
+            'tiers' => mg_rank_tiers(),
+        ]) ?>;
     </script>
 
     <link rel="stylesheet" href="../../assets/css/themes/themes.css">
     <link rel="stylesheet" href="../../assets/css/base.css">
-    <style><?= $customThemeCss ?></style>
+    <style><?= $customThemeCss ?>
+/* ==================================================================
+   Arène Morpion : mise en page recalibrée.
+   Le plateau se dimensionne désormais sur la HAUTEUR disponible en plus
+   de la largeur : sur un écran 1080p, l'arène complète tenait 1111 px
+   pour une fenêtre de ~961 px, ce qui coupait le bas du plateau et
+   obligeait à faire défiler la page en pleine partie.
+   ================================================================== */
+.game-arena {
+  --arena-board-max: min(700px, max(210px, calc(100vh - 22rem)));
+  --arena-board-max: min(700px, max(210px, calc(100dvh - 22rem)));
+  justify-content: flex-start;
+  padding: clamp(0.7rem, 1.6vw, 1.15rem);
+}
+
+/* En pleine partie, la page ne défile plus : le pied de page disparaît et le
+   plateau occupe exactement l'espace restant sous la barre supérieure. */
+body.in-game { overflow: hidden; }
+body.in-game .footer { display: none; }
+
+.arena-heading { margin-bottom: 0.5rem; }
+.arena-heading h1 { font-size: clamp(1.15rem, 2.2vw, 1.7rem); }
+.arena-heading h1 span { display: inline; margin-left: 0.45rem; font-size: 0.68rem; }
+.arena-heading p { display: none; }
+.arena-topbar { margin-bottom: 0.5rem; gap: 0.5rem; }
+.game-scoreboard { padding: 0.5rem 0.75rem; }
+.score-player { font-size: 0.92rem; }
+
+/* Les contrôles tiennent sur une seule ligne défilable au lieu de deux. */
+.arena-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 0.4rem;
+  margin: 0.15rem 0 0.45rem;
+  padding: 0.5rem;
+  scrollbar-width: thin;
+}
+.arena-controls > * { flex: 0 0 auto; }
+.arena-controls .btn-secondary-action { min-height: 34px; padding: 0.4rem 0.7rem; font-size: 0.78rem; }
+.arena-setting { font-size: 0.78rem; }
+
+.turn-indicator { margin-bottom: 0.45rem; padding: 0.35rem 1rem; font-size: 0.82rem; }
+
+.board-container {
+  width: min(94%, var(--arena-board-max));
+  max-width: var(--arena-board-max);
+  margin: 0.3rem auto 0.5rem;
+}
+
+@media (max-height: 780px) {
+  .arena-heading { display: none; }
+}
+
+/* Sur grand écran, l'arène s'élargit : les contrôles tiennent alors sur une
+   seule ligne sans avoir à faire défiler horizontalement. */
+@media (min-width: 1500px) {
+  .game-arena { max-width: min(1360px, 96vw); }
+}
+
+/* --- Indicateur « le bot réfléchit » --- */
+.bot-thinking {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: 0.4rem;
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.score-player.is-thinking .bot-thinking { display: inline-flex; }
+.bot-thinking i {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor;
+  animation: botDot 1s ease-in-out infinite;
+}
+.bot-thinking i:nth-child(3) { animation-delay: 0.16s; }
+.bot-thinking i:nth-child(4) { animation-delay: 0.32s; }
+@keyframes botDot { 0%, 100% { opacity: 0.25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .bot-thinking i { animation: none; opacity: 0.8; } }
+
+/* --- Puce de rang / niveau / XP dans l'en-tête --- */
+.mg-rank-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.7rem 0.45rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.7rem;
+  background: var(--card-inner);
+  color: var(--text-main);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.mg-rank-chip:hover { border-color: var(--primary); transform: translateY(-1px); }
+.mg-rank-icon { font-size: 1.25rem; line-height: 1; }
+.mg-rank-body { display: grid; gap: 0.05rem; text-align: left; }
+.mg-rank-label { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.01em; }
+.mg-rank-meta { color: var(--text-muted); font-size: 0.68rem; }
+.mg-rank-meta b { color: var(--primary); font-weight: 800; }
+.mg-xp-track {
+  position: absolute;
+  left: 0.35rem; right: 0.35rem; bottom: 0.15rem;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  overflow: hidden;
+}
+.mg-xp-fill { display: block; height: 100%; width: 0; border-radius: 999px; background: var(--primary); transition: width 0.45s ease; }
+@media (prefers-reduced-motion: reduce) { .mg-xp-fill { transition: none; } }
+
+/* --- Carte et modale du mode Classé --- */
+.mode-card.is-ranked { border-color: color-mix(in srgb, var(--primary) 45%, transparent); }
+.ranked-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.7rem;
+  background: var(--card-inner);
+}
+.ranked-banner .rb-icon { font-size: 1.6rem; line-height: 1; }
+.ranked-banner .rb-text { display: grid; gap: 0.1rem; min-width: 0; }
+.ranked-banner .rb-title { font-size: 0.85rem; font-weight: 800; }
+.ranked-banner .rb-sub { color: var(--text-muted); font-size: 0.72rem; }
+.ranked-tiers { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.15rem 0 0.6rem; }
+.ranked-tier {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  padding: 0.18rem 0.5rem;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--card-inner);
+  color: var(--text-dim);
+  font-size: 0.68rem;
+}
+.ranked-tier.is-current { border-color: var(--primary); color: var(--primary); font-weight: 800; }
+.ranked-choice { display: grid; gap: 0.5rem; }
+.ranked-choice .rc-title { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.ranked-choice .rc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.45rem; }
+
+/* --- Modale de récompenses --- */
+.reward-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.7rem; margin: 0.4rem 0 0.2rem; }
+.reward-box {
+  padding: 0.85rem 0.6rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.8rem;
+  background: var(--card-inner);
+  text-align: center;
+}
+.reward-box .rb-value { font-size: 1.5rem; font-weight: 900; line-height: 1.1; }
+.reward-box .rb-label { margin-top: 0.2rem; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.reward-box.is-up { border-color: #34d399; }
+.reward-box.is-down { border-color: #ef4444; }
+.reward-box.is-neutral { border-color: var(--card-border); }
+.reward-progress { height: 6px; margin-top: 0.55rem; border-radius: 999px; background: color-mix(in srgb, var(--primary) 18%, transparent); overflow: hidden; }
+.reward-progress i { display: block; height: 100%; border-radius: 999px; background: var(--primary); }
+.reward-note { margin-top: 0.7rem; color: var(--text-muted); font-size: 0.8rem; text-align: center; }
+.reward-levelup {
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #34d399;
+  border-radius: 0.6rem;
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+  font-weight: 800;
+  font-size: 0.85rem;
+  text-align: center;
+}
+.reward-levelup[hidden] { display: none; }
+.input-group[hidden] { display: none; }
+
+/* --- Tableau du barème --- */
+.ranked-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.ranked-table th,
+.ranked-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--card-border);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.ranked-table th {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.ranked-table td.is-up { color: #34d399; font-weight: 700; }
+.ranked-table td.is-down { color: #f87171; font-weight: 700; }
+.ranked-table tr:last-child td { border-bottom: 0; }
+
+/* Plateau large et lisible, sans effets néon. */
+body.in-game { overflow: auto; }
+
+.game-arena {
+  width: 100%;
+  max-width: min(1200px, 96vw);
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  background: #0c0e13;
+  box-shadow: none;
+}
+
+.board-container {
+  width: 100%;
+  max-width: none;
+  flex: none;
+  align-self: stretch;
+  margin: 0.5rem 0 0.8rem;
+  container-type: inline-size;
+}
+
+#game-board,
+#board,
+.board-grid,
+.board-grid-3x3,
+.board-grid-5x5,
+.board-grid-gomoku {
+  background: #10131a;
+  border: 1px solid var(--card-border);
+  box-shadow: none;
+}
+
+#game-board .board-cell,
+#board .board-cell {
+  background: #0c0e13;
+  border-color: rgba(255, 255, 255, 0.18);
+  font-size: calc(100cqw / var(--grid-n, 3) * 0.5) !important;
+  text-shadow: none;
+}
+
+#game-board .board-cell:hover:not(.filled),
+#board .board-cell:hover:not(.filled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+#game-board .board-cell.cell-x,
+#game-board .board-cell.cell-o,
+#board .board-cell.cell-x,
+#board .board-cell.cell-o {
+  text-shadow: none;
+}
+
+#game-board .board-cell.winning-cell,
+#board .board-cell.winning-cell {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: var(--text-main) !important;
+  text-shadow: none !important;
+  box-shadow: none;
+}
+
+#game-board .board-cell.last-move,
+#board .board-cell.last-move {
+  outline: 2px solid #f472b6;
+  outline-offset: -3px;
+  background: rgba(244, 114, 182, 0.12);
+}
+
+.arena-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  overflow: visible;
+}
+
+@media (max-width: 720px) {
+  .arena-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
 
     <script src="../../assets/js/theme.js"></script>
     <script src="../../assets/js/audio.js" defer></script>
     <script src="bot.js" defer></script>
     <script src="games.js?v=space-core" defer></script>
-    <script src="../../dev/livereload.js" defer></script>
 </head>
 <body>
 
@@ -40,7 +333,7 @@
             </a>
             <a class="btn-topbar" href="../../space-core/">Space Core</a>
             <?php if ($user): ?>
-                <a class="btn-topbar" href="../../account.php">
+                <a class="btn-topbar" href="../../profile.php">
                     <span><?= e($user["avatar"] ?: '🚀') ?></span>
                     <span><?= e($user["display_name"]) ?></span>
                 </a>
@@ -69,10 +362,24 @@
                 <span>Partager</span>
             </button>
 
-            <div class="level-badge" id="stats-pill" style="cursor: pointer;" title="Voir vos statistiques" onclick="document.getElementById('stats-modal').style.display='flex'">
-                <span>🏆</span>
-                <div id="stats-pill-text">0 V | 0 D</div>
-            </div>
+            <?php if ($user): ?>
+                <button class="mg-rank-chip" id="rank-chip" type="button" title="Votre profil classé — cliquez pour le détail">
+                    <span class="mg-rank-icon" id="rank-chip-icon"><?= e($rankedTier['icon']) ?></span>
+                    <span class="mg-rank-body">
+                        <span class="mg-rank-label" id="rank-chip-label"><?= e($rankedTier['label']) ?></span>
+                        <span class="mg-rank-meta"><b id="rank-chip-points"><?= e($rankedTier['points']) ?></b> pts · Niv. <b id="rank-chip-level"><?= e($rankedLevel['level']) ?></b></span>
+                    </span>
+                    <span class="mg-xp-track" aria-hidden="true"><span class="mg-xp-fill" id="rank-chip-xp" style="width: <?= e($rankedLevel['progress']) ?>%"></span></span>
+                </button>
+            <?php else: ?>
+                <a class="mg-rank-chip" id="rank-chip" href="../../account.php" title="Connectez-vous pour jouer en classé">
+                    <span class="mg-rank-icon">🔒</span>
+                    <span class="mg-rank-body">
+                        <span class="mg-rank-label">Mode classé</span>
+                        <span class="mg-rank-meta">Connexion requise</span>
+                    </span>
+                </a>
+            <?php endif; ?>
 
             <a href="../../index.php" class="btn-topbar" title="Retourner à la liste des jeux">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -244,6 +551,48 @@
                     <div class="card-footer-note">Partagez l'IP locale ou le code à 4 lettres.</div>
                 </div>
             </div>
+
+            <!-- CARTE 4 : MATCH CLASSÉ (RANKED) -->
+            <div class="mode-card is-ranked">
+                <div class="card-top">
+                    <span class="card-step-num">04 · CLASSÉ / RANKED</span>
+                    <span class="card-badge-pill">ELO</span>
+                </div>
+
+                <div class="card-body">
+                    <div class="ranked-banner">
+                        <span class="rb-icon" id="ranked-card-icon"><?= e($rankedTier['icon'] ?? '🔒') ?></span>
+                        <span class="rb-text">
+                            <span class="rb-title" id="ranked-card-label"><?= e($rankedTier['label'] ?? 'Connexion requise') ?></span>
+                            <span class="rb-sub" id="ranked-card-sub"><?= $user
+                                ? e($rankedTier['points'] . ' pts · Niveau ' . $rankedLevel['level'] . ' · Saison ' . $rankedSeason)
+                                : 'Créez un compte pour gagner des points' ?></span>
+                        </span>
+                    </div>
+
+                    <div class="ranked-tiers" id="ranked-tiers">
+                        <?php foreach (mg_rank_tiers() as $tier): ?>
+                            <span class="ranked-tier<?= ($rankedTier && $rankedTier['key'] === $tier['key']) ? ' is-current' : '' ?>" data-tier="<?= e($tier['key']) ?>">
+                                <?= e($tier['icon']) ?> <?= e($tier['name']) ?>
+                            </span>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <h2 class="card-title">Match classé</h2>
+                    <p class="card-desc">Chaque résultat fait varier vos points, votre rang et votre niveau.</p>
+
+                    <div class="card-buttons-zone">
+                        <button class="btn-primary-action" id="btn-ranked-start" <?= $user ? '' : 'disabled' ?>>
+                            Lancer un match classé
+                        </button>
+                        <button class="btn-secondary-action" id="btn-ranked-guide">
+                            Voir le barème
+                        </button>
+                    </div>
+
+                    <div class="card-footer-note">PvP +25 / −15 / +5 · Bot de +5 / −10 à +40 / −2.</div>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -272,6 +621,9 @@
                     <span id="score-o" style="color: var(--color-o); margin-right: 4px;">0</span>
                     <span id="name-o">Joueur 2</span>
                     <span id="symbol-o-score" style="color: var(--color-o);">○</span>
+                    <span class="bot-thinking" id="bot-thinking" aria-live="polite">
+                        réfléchit<i></i><i></i><i></i>
+                    </span>
                 </div>
             </div>
 
@@ -358,7 +710,7 @@
 
             <div class="input-group">
                 <label class="input-label">Pseudo Joueur 2 (○) :</label>
-                <input type="text" id="local-p2-name" class="input-field" value="Joueur 2" maxlength="20">
+                <input type="text" id="local-p2-name" class="input-field" value="<?= e($user ? $playerDisplayName : 'Joueur 2') ?>" maxlength="30">
             </div>
 
             <div class="input-group">
@@ -521,7 +873,7 @@
 
             <div class="input-group">
                 <label class="input-label">Pseudo Joueur 2 :</label>
-                <input type="text" id="tourney-p2-name" class="input-field" value="Joueur 2" maxlength="20">
+                <input type="text" id="tourney-p2-name" class="input-field" value="<?= e($user ? $playerDisplayName : 'Joueur 2') ?>" maxlength="30">
             </div>
 
             <div class="input-group">
@@ -573,12 +925,183 @@
         </div>
     </div>
 
+    <!-- MODALE : CONFIGURATION D'UN MATCH CLASSÉ -->
+    <div class="modal-overlay" id="ranked-setup-modal">
+        <div class="modal-content">
+            <button class="modal-close-btn">&times;</button>
+            <h3 class="modal-title">Match Classé</h3>
+            <p class="modal-subtitle">Chaque résultat fait varier vos points classés.</p>
+
+            <div class="ranked-banner">
+                <span class="rb-icon" id="ranked-modal-icon"><?= e($rankedTier['icon'] ?? '🔒') ?></span>
+                <span class="rb-text">
+                    <span class="rb-title" id="ranked-modal-label"><?= e($rankedTier['label'] ?? 'Hors classement') ?></span>
+                    <span class="rb-sub" id="ranked-modal-sub"><?= $user ? e($rankedTier['points'] . ' pts · Niveau ' . $rankedLevel['level']) : 'Connectez-vous pour être classé' ?></span>
+                </span>
+            </div>
+
+            <div class="input-group">
+                <label class="input-label" for="ranked-opponent">Adversaire :</label>
+                <select id="ranked-opponent" class="input-field">
+                    <option value="bot">🤖 Le bot Space</option>
+                    <option value="local">🧑‍🤝‍🧑 Un joueur sur cet appareil</option>
+                    <option value="wifi">📶 Un joueur en Wi-Fi</option>
+                </select>
+            </div>
+
+            <div class="input-group" id="ranked-bot-level-group">
+                <label class="input-label" for="ranked-bot-level">Difficulté du bot :</label>
+                <select id="ranked-bot-level" class="input-field">
+                    <option value="novice">🐣 Novice (+5 / −10)</option>
+                    <option value="medium" selected>🤖 Intermédiaire (+15 / −5)</option>
+                    <option value="advanced">🧠 Avancé (+25 / −5)</option>
+                    <option value="legend">👑 Légende (+40 / −2)</option>
+                    <option value="adaptive">🧬 Adaptatif (+30 / −5)</option>
+                </select>
+            </div>
+
+            <div class="input-group" id="ranked-local-group" hidden>
+                <label class="input-label" for="ranked-local-name">Pseudo de l'adversaire :</label>
+                <input type="text" id="ranked-local-name" class="input-field" value="<?= e($user ? $playerDisplayName : 'Joueur 2') ?>" maxlength="30">
+            </div>
+
+            <div class="input-group">
+                <label class="input-label" for="ranked-grid-size">Format de la grille :</label>
+                <select id="ranked-grid-size" class="input-field">
+                    <option value="3" selected>Classique 3x3</option>
+                    <option value="5">5x5 (4 alignés)</option>
+                    <option value="10">10x10 (5 alignés)</option>
+                    <option value="12">12x12 (5 alignés)</option>
+                    <option value="15">15x15 (5 alignés)</option>
+                    <option value="19">19x19 (5 alignés)</option>
+                </select>
+            </div>
+
+            <div class="input-group" id="ranked-starter-group">
+                <label class="input-label" for="ranked-starter">Qui commence la partie ?</label>
+                <select id="ranked-starter" class="input-field">
+                    <option value="player" selected>Vous commencez (✕)</option>
+                    <option value="opponent">L'adversaire commence (○)</option>
+                    <option value="alternate">Alterné à chaque manche</option>
+                </select>
+            </div>
+
+            <p class="card-footer-note" id="ranked-modal-note">Les points sont calculés par le serveur à la fin de la manche.</p>
+
+            <div style="margin-top: 1.5rem;">
+                <button class="btn-primary-action" id="btn-confirm-ranked">
+                    Lancer le match classé 🏅
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALE : BARÈME ET RANGS (généré depuis le serveur, jamais désynchronisé) -->
+    <div class="modal-overlay" id="ranked-guide-modal">
+        <div class="modal-content" style="width: min(680px, 100%);">
+            <button class="modal-close-btn">&times;</button>
+            <h3 class="modal-title">Barème & Rangs</h3>
+            <p class="modal-subtitle">Le gain de points dépend du mode et de la difficulté.</p>
+
+            <div class="admin-table-wrap">
+                <table class="ranked-table">
+                    <thead><tr><th>Mode</th><th>Victoire</th><th>Défaite</th><th>Égalité</th></tr></thead>
+                    <tbody>
+                    <?php
+                    $baremeRows = [
+                        ['🤖 Bot Novice', 'bot', 'novice'],
+                        ['🤖 Bot Intermédiaire', 'bot', 'medium'],
+                        ['🧠 Bot Avancé', 'bot', 'advanced'],
+                        ['👑 Bot Légende', 'bot', 'legend'],
+                        ['🧬 Bot Adaptatif', 'bot', 'adaptive'],
+                        ['🧑‍🤝‍🧑 Duel PvP (local ou Wi-Fi)', 'local', null],
+                    ];
+                    foreach ($baremeRows as [$baremeLabel, $baremeMode, $baremeLevel]):
+                        $win = mg_ranked_bareme($baremeMode, $baremeLevel, 'win');
+                        $loss = mg_ranked_bareme($baremeMode, $baremeLevel, 'loss');
+                        $tie = mg_ranked_bareme($baremeMode, $baremeLevel, 'tie');
+                        $sign = static fn(int $n): string => $n > 0 ? '+' . $n : (string)$n; ?>
+                        <tr>
+                            <td><?= e($baremeLabel) ?></td>
+                            <td class="is-up"><?= e($sign($win['points'])) ?> pts</td>
+                            <td class="is-down"><?= e($sign($loss['points'])) ?> pts</td>
+                            <td><?= e($sign($tie['points'])) ?> pts</td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <h4 class="modal-title" style="font-size: 1rem; margin-top: 1.4rem;">Paliers de rang</h4>
+            <div class="admin-table-wrap">
+                <table class="ranked-table">
+                    <thead><tr><th>Rang</th><th>Points requis</th></tr></thead>
+                    <tbody>
+                    <?php foreach (mg_rank_tiers() as $tier): ?>
+                        <tr>
+                            <td><?= e($tier['icon'] . ' ' . $tier['name']) ?></td>
+                            <td><?= e($tier['max'] === null ? $tier['min'] . ' pts et plus' : $tier['min'] . ' – ' . $tier['max'] . ' pts') ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="card-footer-note">
+                Progression : environ 1 000 XP par niveau, jusqu'au niveau <?= e(MG_MAX_LEVEL) ?>.
+                Les points ne descendent jamais sous zéro.
+            </p>
+        </div>
+    </div>
+
+    <!-- MODALE : RÉCOMPENSES DE FIN DE MATCH CLASSÉ -->
+    <div class="modal-overlay" id="reward-modal" role="dialog" aria-modal="true" aria-labelledby="reward-title">
+        <div class="modal-content">
+            <h3 class="modal-title" id="reward-title">Match classé terminé</h3>
+            <p class="modal-subtitle" id="reward-subtitle"></p>
+
+            <div class="reward-grid">
+                <div class="reward-box" id="reward-points-box">
+                    <div class="rb-value" id="reward-points">0</div>
+                    <div class="rb-label">Points classés</div>
+                </div>
+                <div class="reward-box">
+                    <div class="rb-value" id="reward-xp">0</div>
+                    <div class="rb-label">XP gagnée</div>
+                </div>
+                <div class="reward-box">
+                    <div class="rb-value" id="reward-rank-icon">🥉</div>
+                    <div class="rb-label" id="reward-rank-label">Bronze III</div>
+                </div>
+            </div>
+
+            <div class="reward-progress" aria-hidden="true"><i id="reward-progress-fill" style="width: 0"></i></div>
+            <p class="reward-note" id="reward-note"></p>
+            <p class="reward-levelup" id="reward-levelup" hidden></p>
+
+            <div class="round-end-actions">
+                <button class="btn-primary-action" id="reward-next-round" type="button">Manche suivante</button>
+                <button class="btn-secondary-action" id="reward-close" type="button">Fermer</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODALE : STATISTIQUES DU JOUEUR -->
     <div class="modal-overlay" id="stats-modal">
         <div class="modal-content">
             <button class="modal-close-btn">&times;</button>
             <h3 class="modal-title">Vos Statistiques</h3>
-            <p class="modal-subtitle">Historique sauvegardé dans votre navigateur.</p>
+            <p class="modal-subtitle">Profil classé et compteurs de la session.</p>
+
+            <div class="ranked-banner" id="stats-ranked-banner">
+                <span class="rb-icon" id="stats-rank-icon"><?= e($rankedTier['icon'] ?? '🔒') ?></span>
+                <span class="rb-text">
+                    <span class="rb-title" id="stats-rank-label"><?= e($rankedTier['label'] ?? 'Hors classement') ?></span>
+                    <span class="rb-sub" id="stats-rank-sub"><?= $user
+                        ? e($rankedTier['points'] . ' pts · Niveau ' . $rankedLevel['level'] . ' · ' . $rankedLevel['into'] . '/' . ($rankedLevel['next'] ?: '—') . ' XP')
+                        : 'Connectez-vous pour être classé' ?></span>
+                </span>
+            </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
                 <div style="background: var(--card-inner); padding: 1rem; border-radius: 0.8rem; text-align: center; border: 1px solid var(--card-border);">

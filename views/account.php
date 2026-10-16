@@ -14,36 +14,7 @@
     <script src="assets/js/audio.js" defer></script>
 </head>
 <body>
-    <header class="topbar">
-        <a href="index.php" class="brand-wrapper">
-            <div class="brand-icon"><span class="x-sym">🎮</span></div>
-            <div class="brand-title">Multi-Games <span>Compte Joueur</span></div>
-        </a>
-        <div class="topbar-actions">
-            <a class="btn-topbar" href="index.php">Hub Jeux</a>
-            <a class="btn-topbar" href="games/morpion/index.php">Morpion</a>
-            <a class="btn-topbar" href="leaderboard.php">Classement 🏆</a>
-            <a class="btn-topbar" href="space-core/">Space Core</a>
-
-            <?php if ($user && $user["role"] === 'admin'): ?>
-                <a class="btn-topbar admin-btn" href="admin.php">Administration</a>
-            <?php endif; ?>
-
-            <?php if ($user): ?>
-                <form method="post" action="account.php" class="inline-form" style="margin: 0;">
-                    <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
-                    <input type="hidden" name="action" value="logout">
-                    <button class="btn-topbar" type="submit">Déconnexion</button>
-                </form>
-            <?php endif; ?>
-
-            <button class="btn-topbar palette-btn" id="theme-palette-btn" title="Changer de thème">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 0 0 7 7c0 2-2 3-2 3"/>
-                </svg>
-            </button>
-        </div>
-    </header>
+    <?php $headerSubtitle = 'Compte joueur'; require __DIR__ . '/partials/header.php'; ?>
 
     <main class="main-container account-page" style="padding-top: 1.5rem;">
         <?php if ($error): ?>
@@ -61,7 +32,9 @@
                     <div class="account-hero-info">
                         <div class="account-hero-name">
                             <span><?= e($user["display_name"]) ?></span>
-                            <?php if ($user["role"] === 'admin'): ?>
+                            <?php if (strcasecmp(trim((string)$user["email"]), Database::OWNER_EMAIL) === 0): ?>
+                                <span style="font-size: 0.72rem; background: rgba(250, 204, 21, 0.15); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.35); padding: 0.2rem 0.6rem; border-radius: 9999px;">👑 Owner</span>
+                            <?php elseif ($user["role"] === 'admin'): ?>
                                 <span style="font-size: 0.72rem; background: var(--badge-bg); color: var(--badge-text); border: 1px solid var(--badge-border); padding: 0.2rem 0.6rem; border-radius: 9999px;">ADMINISTRATEUR</span>
                             <?php else: ?>
                                 <span style="font-size: 0.72rem; background: rgba(255,255,255,0.08); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.12); padding: 0.2rem 0.6rem; border-radius: 9999px;">JOUEUR</span>
@@ -130,6 +103,28 @@
                                 </span>
                             <?php endif; ?>
                         </div>
+                    </div>
+
+                    <!-- 0. PROFIL CLASSÉ : RANG, POINTS, NIVEAU, XP -->
+                    <?php
+                    $accRank = mg_rank_for_points((int)($user["ranked_points"] ?? 0));
+                    $accLevel = mg_level_from_xp((int)($user["xp"] ?? 0));
+                    ?>
+                    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-bottom: 1.25rem; padding: 1rem 1.15rem; border: 1px solid var(--card-border); border-radius: 1rem; background: var(--card-inner);">
+                        <div style="font-size: 2.2rem; line-height: 1;" aria-hidden="true"><?= e($accRank["icon"]) ?></div>
+                        <div style="flex: 1 1 220px; min-width: 0;">
+                            <div style="font-size: 1.05rem; font-weight: 800;"><?= e($accRank["label"]) ?></div>
+                            <div style="color: var(--text-muted); font-size: 0.82rem;">
+                                <?= e($accRank["points"]) ?> points classés · niveau <?= e($accLevel["level"]) ?> / <?= e(MG_MAX_LEVEL) ?> · saison <?= e($user["season_id"] ?? 1) ?>
+                            </div>
+                            <div style="margin-top: 0.5rem; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--primary) 18%, transparent); overflow: hidden;">
+                                <i style="display: block; height: 100%; width: <?= e($accLevel["progress"]) ?>%; background: var(--primary); border-radius: 999px;"></i>
+                            </div>
+                            <div style="margin-top: 0.3rem; color: var(--text-dim); font-size: 0.74rem;">
+                                <?= e($accLevel["into"]) ?> / <?= e($accLevel["next"] ?: "—") ?> XP vers le niveau suivant
+                            </div>
+                        </div>
+                        <a href="games/morpion/index.php" class="btn-primary-action" style="text-decoration: none; white-space: nowrap;">Jouer en classé 🏅</a>
                     </div>
 
                     <!-- 1. GRILLE KPI PRINCIPALE : VICTOIRES, DÉFAITES, RATIO, TAUX, NULS, POINTS -->
@@ -461,40 +456,13 @@
                     <div class="hub-tag" style="margin-bottom: 1.2rem;">Personnalisation &amp; Sécurité</div>
 
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1.4rem; align-items: start;">
-                        <!-- 1. Changer d'Avatar (Boutons Radio Fiables) -->
                         <div class="account-form">
-                            <h3 class="card-title" style="font-size: 1.15rem;">Changer d'Avatar</h3>
-                            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Choisissez l'icône qui vous représentera dans les parties et au classement.</p>
-                            <form method="post" action="account.php">
-                                <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
-                                <input type="hidden" name="action" value="update_avatar">
-
-                                <div class="avatar-grid">
-                                    <?php foreach ($availableAvatars as $av): ?>
-                                        <label class="avatar <?= e(($user["avatar"] ?: '🚀') === $av ? 'active' : '') ?>" title="Choisir <?= e($av) ?>">
-                                            <input type="radio" name="avatar" value="<?= e($av) ?>" <?= e(($user["avatar"] ?: '🚀') === $av ? 'checked' : '') ?> onchange="document.getElementById('current-user-avatar').textContent = this.value;">
-                                            <span><?= e($av) ?></span>
-                                        </label>
-                                    <?php endforeach; ?>
-                                </div>
-                                <button class="btn-primary-action" type="submit" style="margin-top: 0.5rem;">Enregistrer l'avatar</button>
-                            </form>
+                            <h3 class="card-title" style="font-size: 1.15rem;">Profil public</h3>
+                            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.8rem;">Modifiez votre pseudo unique, votre avatar, votre bio et vos réglages de confidentialité depuis votre profil.</p>
+                            <a class="btn-primary-action" href="<?= e(app_url('/profile.php')) ?>">Ouvrir mon profil</a>
                         </div>
 
-                        <!-- 2. Changer de Pseudo -->
-                        <div class="account-form">
-                            <h3 class="card-title" style="font-size: 1.15rem;">Modifier le Pseudo</h3>
-                            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Visible par les autres joueurs en ligne et sur le podium.</p>
-                            <form method="post" action="account.php">
-                                <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
-                                <input type="hidden" name="action" value="update_profile">
-                                <label for="update-name">Nouveau pseudo (2 à 30 caractères)</label>
-                                <input id="update-name" name="display_name" type="text" value="<?= e($user["display_name"]) ?>" required minlength="2" maxlength="30" autocomplete="nickname" placeholder="Votre nouveau pseudo">
-                                <button class="btn-primary-action" type="submit">Sauvegarder le pseudo</button>
-                            </form>
-                        </div>
-
-                        <!-- 3. Changer d'Email -->
+                        <!-- 1. Changer d'Email -->
                         <div class="account-form">
                             <h3 class="card-title" style="font-size: 1.15rem;">Modifier l'Adresse E-mail</h3>
                             <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Utilisée pour vous connecter à votre compte Multi-Games.</p>
@@ -507,7 +475,7 @@
                             </form>
                         </div>
 
-                        <!-- 4. Changer de Mot de Passe -->
+                        <!-- 2. Changer de Mot de Passe -->
                         <div class="account-form">
                             <h3 class="card-title" style="font-size: 1.15rem;">Changer de Mot de Passe</h3>
                             <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Sécurisez votre compte avec un mot de passe robuste.</p>
@@ -541,7 +509,7 @@
                             </form>
                         </div>
 
-                        <!-- 5. Thème préféré -->
+                        <!-- 3. Thème préféré -->
                         <div class="account-form">
                             <h3 class="card-title" style="font-size: 1.15rem;">Thème Visuel du Compte</h3>
                             <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">Définissez votre palette de couleurs favorite par défaut.</p>

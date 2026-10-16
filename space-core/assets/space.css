@@ -1,1 +1,1546 @@
-*{box-sizing:border-box}body{margin:0;background:#080d1c;color:#eef1ff;font:16px system-ui,sans-serif;min-height:100vh;display:grid;place-items:center;padding:20px}main{width:min(900px,100%);background:#111a30;border:1px solid #2b3757;border-radius:24px;padding:24px;box-shadow:0 20px 80px #0005}header{display:flex;align-items:center;gap:16px;border-bottom:1px solid #2b3757;padding-bottom:20px}h1{font-size:25px;margin:0}header p{color:#aab6d4;margin:5px 0}.orb{font-size:36px;color:#8bafff}.home-link{color:#cbd7ff;text-decoration:none;margin-left:auto}header button{margin-left:0}button{background:#33487a;color:white;border:1px solid #526799;border-radius:12px;padding:12px;cursor:pointer}button:hover{background:#415d99}button:disabled{opacity:.5;cursor:default}#chat{height:55vh;overflow:auto;display:flex;flex-direction:column;gap:14px;padding:24px 0}.bubble{white-space:pre-wrap;overflow-wrap:anywhere;max-width:85%;background:#22304e;border-radius:16px;padding:14px 18px;align-self:flex-start;line-height:1.6}.user{background:#455fd0;align-self:flex-end}.error{background:#612d40}form{display:flex;gap:8px}#message{flex:1;min-width:0;background:#080f22;color:white;border:1px solid #354564;border-radius:12px;padding:14px;font:inherit}#status{min-height:20px;color:#adc4ff;font-size:14px}footer{margin-top:18px;color:#aab6d4;font-size:13px}footer button{font-size:12px;margin-left:10px}footer p{margin-bottom:0}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}@media(max-width:600px){body{padding:8px}main{padding:14px}header{flex-wrap:wrap}header button{font-size:12px}.home-link{margin-left:0}#chat{height:53vh}.bubble{max-width:94%}}
+/* ==========================================================================
+   Space Core — interface de conversation (barre latérale + fil)
+   Feuille dédiée à la page /space-core/. Elle s'appuie sur les variables de
+   thème du site (assets/css/themes/themes.css) et sur assets/css/base.css.
+   Aucune dépendance externe : ni police distante, ni framework.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Variables locales et base de page
+   -------------------------------------------------------------------------- */
+.sp-body {
+    --sp-sidebar-w: 19rem;
+    --sp-column: 54rem;
+    --sp-radius: 1.05rem;
+    --sp-line: color-mix(in srgb, var(--card-border) 80%, transparent);
+    min-height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+.sp-app {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: var(--sp-sidebar-w) minmax(0, 1fr);
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+}
+
+/* L'attribut hidden doit primer sur les display: flex/grid de ce fichier. */
+.sp-app [hidden],
+.sp-backdrop[hidden] {
+    display: none !important;
+}
+
+.sp-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Anneau de focus homogène pour tous les contrôles de la page. */
+.sp-app button:focus-visible,
+.sp-app a:focus-visible,
+.sp-app textarea:focus-visible,
+.sp-app input:focus-visible,
+.sp-dialog button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.sp-orb {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+    background: color-mix(in srgb, var(--primary) 16%, var(--card-inner));
+    color: var(--primary);
+    font-size: 1rem;
+    line-height: 1;
+    box-shadow: 0 0 16px -6px var(--primary);
+}
+
+/* --------------------------------------------------------------------------
+   2. Barre latérale d'historique
+   -------------------------------------------------------------------------- */
+.sp-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    padding: 1rem 0.85rem 1.1rem;
+    border-right: 1px solid var(--sp-line);
+    background: color-mix(in srgb, var(--card-inner) 82%, transparent);
+    backdrop-filter: blur(14px);
+    overflow: hidden;
+    transition: transform 0.22s ease, opacity 0.22s ease, visibility 0.22s;
+}
+
+.sp-sidebar-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0 0.2rem 0.15rem;
+}
+
+.sp-brand {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.sp-brand strong {
+    color: var(--text-main);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.sp-brand span {
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.sp-new {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.6rem 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--primary) 55%, transparent);
+    border-radius: 0.8rem;
+    background: color-mix(in srgb, var(--primary) 16%, var(--card-bg));
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.sp-new:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--primary) 28%, var(--card-bg));
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.sp-new:disabled {
+    opacity: 0.5;
+    cursor: progress;
+}
+
+.sp-history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0 0.35rem;
+    color: var(--text-dim);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.sp-history-count {
+    min-width: 1.6rem;
+    padding: 0.05rem 0.4rem;
+    border: 1px solid var(--badge-border);
+    border-radius: 999px;
+    background: var(--badge-bg);
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    text-align: center;
+    letter-spacing: 0;
+}
+
+.sp-history {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.15rem 0.1rem 0.3rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--card-border) transparent;
+}
+
+.sp-history::-webkit-scrollbar {
+    width: 8px;
+}
+
+.sp-history::-webkit-scrollbar-thumb {
+    background: var(--card-border);
+    border-radius: 999px;
+}
+
+.sp-history-empty {
+    margin: 0.5rem 0.3rem;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.sp-conv {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    border: 1px solid transparent;
+    border-radius: 0.8rem;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.sp-conv:hover {
+    background: color-mix(in srgb, var(--primary) 9%, transparent);
+}
+
+.sp-conv.is-active {
+    background: color-mix(in srgb, var(--primary) 18%, transparent);
+    border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+.sp-conv-open {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0.55rem 3.6rem 0.55rem 0.65rem;
+    border: 0;
+    border-radius: 0.8rem;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.sp-conv-title {
+    display: block;
+    color: var(--text-main);
+    font-size: 0.87rem;
+    font-weight: 650;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sp-conv.is-active .sp-conv-title {
+    color: #fff;
+}
+
+.sp-conv-excerpt {
+    display: -webkit-box;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    line-height: 1.4;
+    overflow: hidden;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.sp-conv-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.15rem;
+    color: var(--text-dim);
+    font-size: 0.67rem;
+    letter-spacing: 0.02em;
+}
+
+.sp-conv-meta span + span::before {
+    content: "·";
+    margin-right: 0.4rem;
+}
+
+.sp-conv-actions {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.3rem;
+    display: flex;
+    gap: 0.15rem;
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
+}
+
+.sp-conv:hover .sp-conv-actions,
+.sp-conv:focus-within .sp-conv-actions {
+    opacity: 1;
+}
+
+.sp-conv-btn {
+    display: grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 0.45rem;
+    background: color-mix(in srgb, var(--card-bg) 70%, transparent);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.78rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.sp-conv-btn:hover {
+    border-color: var(--primary);
+    color: var(--text-main);
+}
+
+.sp-conv-rename {
+    width: 100%;
+    min-height: 30px;
+    padding: 0.25rem 0.45rem;
+    border: 1px solid var(--primary);
+    border-radius: 0.45rem;
+    background: var(--card-inner);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.85rem;
+}
+
+.sp-sidebar-note {
+    margin: 0;
+    padding: 0.6rem 0.65rem;
+    border: 1px solid var(--badge-border);
+    border-radius: 0.7rem;
+    background: var(--badge-bg);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.sp-sidebar-note a {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+/* --------------------------------------------------------------------------
+   3. Zone principale : en-tête, fil, saisie
+   -------------------------------------------------------------------------- */
+.sp-main {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    background: color-mix(in srgb, var(--bg-main) 55%, transparent);
+}
+
+.sp-topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 0 0 auto;
+    padding: 0.75rem clamp(0.75rem, 2.5vw, 1.6rem);
+    border-bottom: 1px solid var(--sp-line);
+    background: color-mix(in srgb, var(--card-bg) 55%, transparent);
+    backdrop-filter: blur(12px);
+}
+
+.sp-topbar-title {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.sp-topbar-text {
+    min-width: 0;
+}
+
+.sp-topbar-text h1 {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 1.12rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sp-topbar-text p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 46vw;
+}
+
+.sp-home {
+    flex: 0 0 auto;
+}
+
+.sp-icon-btn {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid var(--secondary-border);
+    border-radius: 0.7rem;
+    background: var(--secondary-bg);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.sp-icon-btn:hover:not(:disabled) {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 18%, var(--secondary-bg));
+}
+
+.sp-icon-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.sp-icon-btn.is-listening {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 32%, var(--secondary-bg));
+    color: #fff;
+    animation: sp-pulse 1.3s ease-in-out infinite;
+}
+
+.sp-banner {
+    flex: 0 0 auto;
+    margin: 0.75rem clamp(0.75rem, 2.5vw, 1.6rem) 0;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--badge-border);
+    border-left: 3px solid var(--primary);
+    border-radius: 0.7rem;
+    background: var(--badge-bg);
+    color: var(--text-main);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+/* Fil de discussion ------------------------------------------------------- */
+.sp-thread {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 1.05rem;
+    padding: 1.35rem clamp(0.75rem, 2.5vw, 1.6rem) 1.1rem;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: var(--card-border) transparent;
+}
+
+.sp-thread::-webkit-scrollbar {
+    width: 10px;
+}
+
+.sp-thread::-webkit-scrollbar-thumb {
+    background: var(--card-border);
+    border-radius: 999px;
+}
+
+.sp-thread > * {
+    width: 100%;
+    max-width: var(--sp-column);
+    margin-inline: auto;
+}
+
+.sp-msg {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+}
+
+.sp-msg--user {
+    flex-direction: row-reverse;
+}
+
+.sp-avatar {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 2.15rem;
+    height: 2.15rem;
+    border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--card-border));
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--primary) 14%, var(--card-inner));
+    color: var(--primary);
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+.sp-msg--user .sp-avatar {
+    border-color: var(--secondary-border);
+    background: var(--secondary-bg);
+    color: var(--text-main);
+}
+
+.sp-msg-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+    min-width: 0;
+    max-width: min(100%, 42rem);
+}
+
+.sp-msg--user .sp-msg-body {
+    align-items: flex-end;
+}
+
+.sp-msg-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0 0.35rem;
+    color: var(--text-dim);
+    font-size: 0.72rem;
+}
+
+.sp-msg-author {
+    color: var(--text-muted);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.sp-msg-time {
+    font-variant-numeric: tabular-nums;
+}
+
+.sp-bubble {
+    max-width: 100%;
+    padding: 0.7rem 0.95rem;
+    border: 1px solid var(--card-border);
+    border-radius: var(--sp-radius);
+    background: var(--card-bg);
+    color: var(--text-main);
+    font-size: 0.95rem;
+    line-height: 1.62;
+    overflow-wrap: anywhere;
+    box-shadow: 0 10px 26px -20px rgba(0, 0, 0, 0.85);
+}
+
+.sp-msg--space .sp-bubble {
+    border-top-left-radius: 0.25rem;
+}
+
+.sp-msg--user .sp-bubble {
+    border-top-right-radius: 0.25rem;
+    border-color: color-mix(in srgb, var(--primary) 42%, transparent);
+    background: color-mix(in srgb, var(--primary) 20%, var(--card-bg));
+}
+
+.sp-msg-actions {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0 0.2rem;
+    opacity: 0.75;
+    transition: opacity 0.15s ease;
+}
+
+.sp-msg:hover .sp-msg-actions,
+.sp-msg:focus-within .sp-msg-actions {
+    opacity: 1;
+}
+
+.sp-copy,
+.sp-link-btn {
+    padding: 0.2rem 0.55rem;
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    background: var(--card-inner);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.sp-copy:hover,
+.sp-link-btn:hover {
+    border-color: var(--primary);
+    color: var(--text-main);
+}
+
+.sp-copy.is-copied {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* Indicateur « Space réfléchit… » */
+.sp-typing-bubble {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.85rem 1rem;
+}
+
+.sp-dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--primary);
+    opacity: 0.45;
+    animation: sp-bounce 1.15s ease-in-out infinite;
+}
+
+.sp-dot:nth-child(2) {
+    animation-delay: 0.16s;
+}
+
+.sp-dot:nth-child(3) {
+    animation-delay: 0.32s;
+}
+
+.sp-typing-text {
+    display: none;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+@keyframes sp-bounce {
+    0%, 100% { transform: translateY(0); opacity: 0.4; }
+    50% { transform: translateY(-0.2rem); opacity: 1; }
+}
+
+@keyframes sp-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Bloc d'information (erreur réseau, etc.) --------------------------------- */
+.sp-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.85rem;
+    border: 1px solid rgba(248, 113, 113, 0.4);
+    border-radius: 0.75rem;
+    background: rgba(127, 29, 29, 0.22);
+    color: #fecaca;
+    font-size: 0.84rem;
+    line-height: 1.5;
+}
+
+.sp-notice p {
+    margin: 0;
+    flex: 1 1 12rem;
+}
+
+/* État vide / accueil ----------------------------------------------------- */
+.sp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.7rem;
+    margin: auto;
+    padding: clamp(1rem, 4vw, 2.5rem) 0.5rem;
+    text-align: center;
+}
+
+.sp-empty-orb {
+    display: grid;
+    place-items: center;
+    width: 3.4rem;
+    height: 3.4rem;
+    border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--primary) 14%, var(--card-inner));
+    color: var(--primary);
+    font-size: 1.5rem;
+    box-shadow: 0 0 30px -10px var(--primary);
+}
+
+.sp-empty h2 {
+    margin: 0;
+    color: var(--text-main);
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.sp-empty-text {
+    max-width: 34rem;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+
+.sp-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    max-width: 40rem;
+}
+
+.sp-chip {
+    padding: 0.5rem 0.85rem;
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    background: var(--card-inner);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.sp-chip:hover {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 16%, var(--card-inner));
+    transform: translateY(-1px);
+}
+
+/* Bouton « revenir en bas » ------------------------------------------------ */
+.sp-scroll-btn {
+    position: absolute;
+    right: clamp(0.9rem, 3vw, 2rem);
+    bottom: 8.5rem;
+    z-index: 5;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    background: var(--card-bg);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 10px 26px -12px rgba(0, 0, 0, 0.9);
+}
+
+.sp-scroll-btn:hover {
+    border-color: var(--primary);
+}
+
+/* Zone de saisie ----------------------------------------------------------- */
+.sp-composer {
+    flex: 0 0 auto;
+    padding: 0.5rem clamp(0.75rem, 2.5vw, 1.6rem) clamp(0.6rem, 2vw, 1rem);
+    border-top: 1px solid var(--sp-line);
+    background: color-mix(in srgb, var(--card-bg) 45%, transparent);
+    backdrop-filter: blur(10px);
+}
+
+.sp-composer-box {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: var(--sp-column);
+    margin: 0 auto;
+    padding: 0.4rem 0.45rem 0.4rem 0.55rem;
+    border: 1px solid var(--card-border);
+    border-radius: 1.35rem;
+    background: var(--card-bg);
+    box-shadow: 0 18px 40px -26px rgba(0, 0, 0, 0.95);
+    transition: border-color 0.16s ease;
+}
+
+.sp-composer-box:focus-within {
+    border-color: color-mix(in srgb, var(--primary) 65%, transparent);
+}
+
+.sp-composer textarea {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-height: 13rem;
+    padding: 0.55rem 0.35rem;
+    border: 0;
+    background: none;
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    resize: none;
+    overflow-y: hidden;
+    outline: none;
+}
+
+.sp-composer textarea::placeholder {
+    color: var(--text-dim);
+}
+
+.sp-composer textarea:disabled {
+    color: var(--text-dim);
+    cursor: not-allowed;
+}
+
+.sp-send {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--primary) 60%, transparent);
+    border-radius: 50%;
+    background: var(--primary);
+    color: var(--primary-text, #fff);
+    font: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.16s ease, transform 0.16s ease, opacity 0.16s ease;
+}
+
+.sp-send:hover:not(:disabled) {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.sp-send:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.sp-composer-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.9rem;
+    width: 100%;
+    max-width: var(--sp-column);
+    margin: 0.45rem auto 0;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+}
+
+.sp-voice {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.sp-voice input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+.sp-learning {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.sp-learning input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+.sp-learning-note {
+    max-width: var(--sp-column);
+    margin: 0.35rem auto 0;
+    color: var(--text-dim);
+    font-size: 0.68rem;
+    line-height: 1.45;
+}
+
+.sp-hint {
+    margin-left: auto;
+    color: var(--text-dim);
+}
+
+.sp-hint kbd {
+    padding: 0.05rem 0.35rem;
+    border: 1px solid var(--card-border);
+    border-radius: 0.3rem;
+    background: var(--card-inner);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.72rem;
+}
+
+/* --------------------------------------------------------------------------
+   4. Markdown léger (le contenu est échappé avant formatage côté JS)
+   -------------------------------------------------------------------------- */
+.sp-md > *:first-child { margin-top: 0; }
+.sp-md > *:last-child { margin-bottom: 0; }
+.sp-md p { margin: 0 0 0.55rem; }
+.sp-md ul { margin: 0 0 0.55rem; padding-left: 1.15rem; }
+.sp-md li { margin: 0.15rem 0; }
+.sp-md strong { color: #fff; font-weight: 700; }
+.sp-md a {
+    color: color-mix(in srgb, var(--primary) 62%, #ffffff);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.sp-md a:hover { color: #fff; }
+.sp-md code {
+    padding: 0.1em 0.35em;
+    border: 1px solid var(--card-border);
+    border-radius: 0.35rem;
+    background: var(--card-inner);
+    color: var(--text-main);
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.86em;
+}
+.sp-md pre {
+    margin: 0;
+    overflow-x: auto;
+}
+.sp-md pre code {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 0.83rem;
+    line-height: 1.55;
+}
+.sp-code {
+    margin: 0.5rem 0;
+    border: 1px solid var(--card-border);
+    border-radius: 0.7rem;
+    background: var(--card-inner);
+    overflow: hidden;
+}
+.sp-code-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.3rem 0.45rem 0.3rem 0.65rem;
+    border-bottom: 1px solid var(--card-border);
+    color: var(--text-dim);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.sp-code-copy {
+    padding: 0.15rem 0.55rem;
+    border: 1px solid var(--card-border);
+    border-radius: 0.45rem;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.7rem;
+    letter-spacing: 0;
+    text-transform: none;
+    cursor: pointer;
+}
+.sp-code-copy:hover {
+    border-color: var(--primary);
+    color: var(--text-main);
+}
+.sp-code pre {
+    padding: 0.7rem 0.85rem;
+}
+
+/* --------------------------------------------------------------------------
+   5. Boîte de dialogue de confirmation
+   -------------------------------------------------------------------------- */
+.sp-dialog {
+    width: min(28rem, calc(100vw - 2rem));
+    padding: 0;
+    border: 1px solid var(--card-border);
+    border-radius: 1rem;
+    background: var(--card-bg);
+    color: var(--text-main);
+    box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.95);
+}
+
+.sp-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.62);
+    backdrop-filter: blur(3px);
+}
+
+.sp-dialog-form {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1.1rem 1.2rem 1.15rem;
+}
+
+.sp-dialog-form h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+}
+
+.sp-dialog-form p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+.sp-dialog-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.sp-btn {
+    min-height: 38px;
+    padding: 0.45rem 0.9rem;
+    border: 1px solid var(--card-border);
+    border-radius: 0.6rem;
+    background: var(--card-inner);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.sp-btn:hover {
+    border-color: var(--primary);
+}
+
+.sp-btn--danger {
+    border-color: color-mix(in srgb, var(--primary) 60%, transparent);
+    background: var(--primary);
+    color: var(--primary-text, #fff);
+}
+
+.sp-btn--danger:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.sp-btn--small {
+    min-height: 30px;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.78rem;
+}
+
+/* --------------------------------------------------------------------------
+   6. Tiroir mobile, repli bureau, très grands écrans
+   -------------------------------------------------------------------------- */
+.sp-backdrop {
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+@media (max-width: 900px) {
+    /* ≤ 900 px (seuil identique à matchMedia dans space.js) : tiroir superposé. */
+    .sp-app {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sp-sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 60;
+        width: min(85vw, 20rem);
+        background: var(--bg-main);
+        border-right: 1px solid var(--card-border);
+        box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.95);
+        transform: translateX(-104%);
+        visibility: hidden;
+    }
+
+    .sp-app.is-drawer-open .sp-sidebar {
+        transform: none;
+        visibility: visible;
+    }
+
+    .sp-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 55;
+        display: block;
+        background: rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(2px);
+    }
+
+    .sp-topbar-text p {
+        max-width: 34vw;
+    }
+
+    .sp-scroll-btn {
+        bottom: 9.5rem;
+        right: 1rem;
+    }
+}
+
+@media (min-width: 901px) {
+    /* > 900 px : repli de la barre latérale sur bureau. */
+    .sp-app.is-collapsed {
+        grid-template-columns: 0 minmax(0, 1fr);
+    }
+
+    .sp-app.is-collapsed .sp-sidebar {
+        transform: translateX(-100%);
+        opacity: 0;
+        visibility: hidden;
+    }
+}
+
+@media (max-width: 30em) {
+    /* ≤ 480 px : marges et tailles réduites, cibles tactiles conservées. */
+    .sp-thread {
+        gap: 0.85rem;
+        padding-top: 1rem;
+    }
+
+    .sp-avatar {
+        width: 1.85rem;
+        height: 1.85rem;
+        font-size: 0.85rem;
+    }
+
+    .sp-msg-body {
+        max-width: 100%;
+    }
+
+    /* On libère de la place pour garder le titre et le lien vers le hub. */
+    .sp-topbar-title .sp-orb {
+        display: none;
+    }
+
+    .sp-topbar {
+        gap: 0.5rem;
+        padding-inline: 0.65rem;
+    }
+
+    .sp-home {
+        padding: 0.4rem 0.7rem;
+        font-size: 0.76rem;
+        white-space: nowrap;
+    }
+
+    .sp-composer-foot .sp-hint {
+        display: none;
+    }
+
+    .sp-conv-open {
+        padding-right: 3.2rem;
+    }
+}
+
+@media (min-width: 120em) {
+    /* ≥ 1920 px : colonne de lecture légèrement élargie. */
+    .sp-body {
+        --sp-column: 60rem;
+    }
+}
+
+/* Accessibilité : respect des préférences de mouvement réduit. */
+@media (prefers-reduced-motion: reduce) {
+    .sp-body,
+    .sp-thread {
+        scroll-behavior: auto;
+    }
+
+    .sp-sidebar,
+    .sp-conv,
+    .sp-conv-actions,
+    .sp-msg-actions,
+    .sp-chip,
+    .sp-send,
+    .sp-new,
+    .sp-icon-btn {
+        transition: none;
+    }
+
+    .sp-dot {
+        animation: none;
+        opacity: 1;
+    }
+
+    .sp-dot + .sp-dot {
+        margin-left: 0.15rem;
+    }
+
+    .sp-typing-text {
+        display: inline;
+        margin-left: 0.45rem;
+    }
+
+    .sp-icon-btn.is-listening {
+        animation: none;
+    }
+
+    .sp-new:hover:not(:disabled),
+    .sp-send:hover:not(:disabled),
+    .sp-chip:hover {
+        transform: none;
+    }
+}
+
+.sp-noscript {
+    margin: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--card-border);
+    border-radius: 0.75rem;
+    background: var(--card-bg);
+    color: var(--text-main);
+}
+
+/* --------------------------------------------------------------------------
+   7. Présentation conversationnelle et accord avec le thème du site
+   -------------------------------------------------------------------------- */
+.sp-body {
+    --sp-sidebar-w: 17rem;
+    --sp-column: 48rem;
+    --sp-line: color-mix(in srgb, var(--card-border) 72%, transparent);
+    background: var(--bg-main);
+    background-image: var(--bg-gradient);
+    color: var(--text-main);
+}
+
+.sp-body::before {
+    display: none;
+}
+
+.sp-app {
+    grid-template-columns: var(--sp-sidebar-w) minmax(0, 1fr);
+}
+
+.sp-sidebar {
+    gap: 1rem;
+    padding: 1.15rem 0.85rem;
+    background: color-mix(in srgb, var(--card-inner) 88%, var(--bg-main));
+    backdrop-filter: none;
+}
+
+.sp-brand span {
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
+
+.sp-new {
+    justify-content: flex-start;
+    border-color: var(--card-border);
+    border-radius: 999px;
+    background: var(--card-bg);
+    font-weight: 600;
+}
+
+.sp-new:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--primary) 12%, var(--card-bg));
+}
+
+.sp-history-head {
+    letter-spacing: 0.06em;
+}
+
+.sp-conv.is-active {
+    background: color-mix(in srgb, var(--primary) 14%, var(--card-bg));
+    border-color: color-mix(in srgb, var(--primary) 28%, var(--card-border));
+}
+
+.sp-conv.is-active .sp-conv-title {
+    color: var(--text-main);
+}
+
+.sp-main {
+    background: var(--bg-main);
+}
+
+.sp-topbar {
+    min-height: 4.25rem;
+    padding: 0.65rem clamp(1rem, 3vw, 2rem);
+    border-bottom-color: transparent;
+    background: color-mix(in srgb, var(--bg-main) 92%, transparent);
+    backdrop-filter: blur(14px);
+}
+
+.sp-topbar-title {
+    gap: 0.6rem;
+}
+
+.sp-topbar-text h1 {
+    font-size: 1rem;
+    letter-spacing: 0;
+}
+
+.sp-topbar-text p {
+    font-size: 0.75rem;
+}
+
+.sp-topbar .sp-orb {
+    width: 1.8rem;
+    height: 1.8rem;
+    background: color-mix(in srgb, var(--primary) 12%, var(--card-bg));
+}
+
+.sp-icon-btn {
+    border-color: transparent;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.sp-icon-btn:hover:not(:disabled) {
+    border-color: var(--card-border);
+    background: var(--card-bg);
+    color: var(--text-main);
+}
+
+.sp-home {
+    border-color: var(--card-border);
+    border-radius: 999px;
+    background: var(--card-bg);
+    color: var(--text-main);
+}
+
+.sp-thread {
+    gap: 1.4rem;
+    padding: 1.5rem clamp(1rem, 3vw, 2rem) 2rem;
+    scrollbar-color: var(--card-border) transparent;
+}
+
+.sp-msg {
+    gap: 0;
+}
+
+.sp-avatar {
+    display: none;
+}
+
+.sp-msg-body {
+    gap: 0.35rem;
+    max-width: min(100%, 44rem);
+}
+
+.sp-msg--user .sp-msg-body {
+    max-width: min(88%, 38rem);
+}
+
+.sp-msg-meta {
+    padding: 0 0.75rem;
+    font-size: 0.68rem;
+}
+
+.sp-msg--user .sp-msg-meta {
+    justify-content: flex-end;
+}
+
+.sp-msg-author {
+    color: var(--text-dim);
+}
+
+.sp-bubble {
+    padding: 0.8rem 1rem;
+    border-color: transparent;
+    border-radius: 1.25rem;
+    background: transparent;
+    box-shadow: none;
+    font-size: 0.98rem;
+    line-height: 1.75;
+}
+
+.sp-msg--space .sp-bubble,
+.sp-msg--space .sp-bubble:first-child {
+    padding-inline: 0;
+}
+
+.sp-msg--user .sp-bubble {
+    border-color: color-mix(in srgb, var(--primary) 18%, transparent);
+    border-radius: 1.25rem;
+    background: color-mix(in srgb, var(--primary) 13%, var(--card-bg));
+}
+
+.sp-msg-actions {
+    padding-inline: 0.2rem;
+}
+
+.sp-copy,
+.sp-link-btn {
+    border-color: transparent;
+    background: transparent;
+}
+
+.sp-copy:hover,
+.sp-link-btn:hover {
+    border-color: var(--card-border);
+    background: var(--card-bg);
+}
+
+.sp-empty {
+    align-items: flex-start;
+    width: 100%;
+    max-width: var(--sp-column);
+    padding: clamp(1rem, 5vh, 3.5rem) 0.25rem;
+    text-align: left;
+}
+
+.sp-empty-orb {
+    width: 2.6rem;
+    height: 2.6rem;
+    border-color: transparent;
+    background: color-mix(in srgb, var(--primary) 14%, var(--card-bg));
+    font-size: 1.2rem;
+    box-shadow: none;
+}
+
+.sp-empty h2 {
+    font-size: clamp(1.65rem, 4vw, 2.3rem);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+}
+
+.sp-empty-text {
+    max-width: 38rem;
+    font-size: 1rem;
+}
+
+.sp-suggestions {
+    justify-content: flex-start;
+    gap: 0.55rem;
+    max-width: 42rem;
+    margin-top: 0.35rem;
+}
+
+.sp-chip {
+    min-height: 2.5rem;
+    padding: 0.55rem 0.9rem;
+    border-color: var(--card-border);
+    border-radius: 0.9rem;
+    background: color-mix(in srgb, var(--card-bg) 80%, transparent);
+    color: var(--text-muted);
+    font-size: 0.84rem;
+}
+
+.sp-chip:hover {
+    border-color: color-mix(in srgb, var(--primary) 55%, var(--card-border));
+    background: color-mix(in srgb, var(--primary) 10%, var(--card-bg));
+    color: var(--text-main);
+}
+
+.sp-composer {
+    padding: 0.45rem clamp(1rem, 3vw, 2rem) max(0.8rem, env(safe-area-inset-bottom));
+    border-top-color: transparent;
+    background: linear-gradient(to bottom, transparent, var(--bg-main) 18%);
+    backdrop-filter: none;
+}
+
+.sp-composer-box {
+    max-width: min(100%, 52rem);
+    padding: 0.55rem 0.6rem 0.55rem 1.15rem;
+    border-color: var(--card-border);
+    border-radius: 1.65rem;
+    background: color-mix(in srgb, var(--card-bg) 94%, var(--bg-main));
+    box-shadow: 0 8px 28px color-mix(in srgb, #000 24%, transparent);
+}
+
+.sp-composer-box:focus-within {
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--card-border));
+}
+
+.sp-composer textarea {
+    padding-block: 0.65rem;
+}
+
+.sp-app .sp-composer textarea:focus-visible {
+    outline: none;
+}
+
+.sp-send {
+    width: 2.65rem;
+    height: 2.65rem;
+    border-color: transparent;
+    background: color-mix(in srgb, var(--primary) 82%, var(--card-bg));
+    color: var(--primary-text, #fff);
+}
+
+.sp-send:hover:not(:disabled) {
+    background: var(--primary-hover);
+}
+
+.sp-composer-foot {
+    max-width: min(100%, 52rem);
+    margin-top: 0.5rem;
+    padding-inline: 0.25rem;
+    font-size: 0.72rem;
+}
+
+.sp-scroll-btn {
+    bottom: 8.9rem;
+    border-color: var(--card-border);
+    background: var(--card-bg);
+}
+
+.sp-md strong {
+    color: var(--text-main);
+}
+
+@media (max-width: 900px) {
+    .sp-app {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sp-sidebar {
+        background: var(--card-inner);
+    }
+
+    .sp-topbar {
+        min-height: 3.8rem;
+    }
+}
+
+@media (max-width: 30em) {
+    .sp-thread {
+        gap: 1rem;
+        padding: 1rem 1rem 1.5rem;
+    }
+
+    .sp-empty {
+        padding-top: 2rem;
+    }
+
+    .sp-empty h2 {
+        font-size: 1.7rem;
+    }
+
+    .sp-chip {
+        min-height: 2.35rem;
+    }
+
+    .sp-composer {
+        padding-inline: 0.7rem;
+    }
+
+    .sp-composer-foot {
+        gap: 0.35rem 0.55rem;
+    }
+}

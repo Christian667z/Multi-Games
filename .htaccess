@@ -2,5 +2,6 @@ Options -Indexes
 DirectoryIndex index.php
 RewriteEngine On
 
+RewriteRule (^|/)_tmp[^/]*(/|$) - [F,NC,L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^ index.php [QSA,L]
